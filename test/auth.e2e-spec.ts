@@ -1,4 +1,4 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request = require('supertest');
 import * as bcrypt from 'bcryptjs';
@@ -16,10 +16,11 @@ describe('Auth (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
+    // ValidationPipe, PrismaExceptionFilter and LoggingInterceptor are all
+    // registered via APP_PIPE/APP_FILTER/APP_INTERCEPTOR in AppModule, so
+    // every TestingModule that imports AppModule gets them automatically —
+    // no need (and no risk of drifting from main.ts) to register them here.
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-    );
     await app.init();
 
     prisma = app.get(PrismaService);
