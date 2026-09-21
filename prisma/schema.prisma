@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  REQUESTER
+  BUYER
+  APPROVER
+  ADMIN
+}
+
+enum PurchaseRequestStatus {
+  DRAFT
+  SUBMITTED
+  IN_QUOTATION
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum QuoteStatus {
+  RECEIVED
+  SELECTED
+  DISCARDED
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+model Department {
+  id               Int               @id @default(autoincrement())
+  name             String            @unique
+  createdAt        DateTime          @default(now())
+  users            User[]
+  purchaseRequests PurchaseRequest[]
+}
+
+model User {
+  id           Int         @id @default(autoincrement())
+  name         String
+  email        String      @unique
+  password     String
+  role         Role        @default(REQUESTER)
+  departmentId Int?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime    @default(now())
+
+  purchaseRequests PurchaseRequest[]               @relation("RequesterRequests")
+  registeredQuotes Quote[]                         @relation("BuyerQuotes")
+  approvals        Approval[]                      @relation("ApproverApprovals")
+  statusChanges    PurchaseRequestStatusHistory[]  @relation("StatusChangedBy")
+}
+
+model Supplier {
+  id                        Int      @id @default(autoincrement())
+  document                  String   @unique
+  legalName                 String
+  tradeName                 String?
+  email                     String?
+  phone                     String?
+  zipCode                   String?
+  street                    String?
+  city                      String?
+  state                     String?
+  federalRegistrationStatus String?
+  isActive                  Boolean  @default(true)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  quotes Quote[]
+}
+
+model PurchaseRequest {
+  id              Int                   @id @default(autoincrement())
+  requesterId     Int
+  requester       User                  @relation("RequesterRequests", fields: [requesterId], references: [id])
+  departmentId    Int
+  department      Department            @relation(fields: [departmentId], references: [id])
+  title           String
+  justification   String
+  status          PurchaseRequestStatus @default(DRAFT)
+  selectedQuoteId Int?                  @unique
+  selectedQuote   Quote?                @relation("SelectedQuote", fields: [selectedQuoteId], references: [id])
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  submittedAt     DateTime?
+  decidedAt       DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+
+  items    PurchaseItem[]
+  quotes   Quote[]                        @relation("RequestQuotes")
+  approval Approval?
+  history  PurchaseRequestStatusHistory[]
+}
+
+model PurchaseItem {
+  id                 Int             @id @default(autoincrement())
+  purchaseRequestId  Int
+  purchaseRequest    PurchaseRequest @relation(fields: [purchaseRequestId], references: [id])
+  description        String
+  quantity           Int
+  unit               String
+  estimatedUnitPrice Decimal?        @db.Decimal(12, 2)
+  createdAt          DateTime        @default(now())
+}
+
+model Quote {
+  id                  Int             @id @default(autoincrement())
+  purchaseRequestId   Int
+  purchaseRequest     PurchaseRequest @relation("RequestQuotes", fields: [purchaseRequestId], references: [id])
+  supplierId          Int
+  supplier            Supplier        @relation(fields: [supplierId], references: [id])
+  createdByUserId     Int
+  createdBy           User            @relation("BuyerQuotes", fields: [createdByUserId], references: [id])
+  totalValue          Decimal         @db.Decimal(12, 2)
+  validUntil          DateTime?
+  notes               String?
+  status              QuoteStatus     @default(RECEIVED)
+  proposalFileName    String?
+  proposalFileMime    String?
+  proposalFileSize    Int?
+  proposalFileContent Bytes?
+  createdAt           DateTime        @default(now())
+
+  selectedFor PurchaseRequest? @relation("SelectedQuote")
+}
+
+model Approval {
+  id                Int              @id @default(autoincrement())
+  purchaseRequestId Int              @unique
+  purchaseRequest   PurchaseRequest  @relation(fields: [purchaseRequestId], references: [id])
+  approverId        Int
+  approver          User             @relation("ApproverApprovals", fields: [approverId], references: [id])
+  decision          ApprovalDecision
+  comment           String?
+  decidedAt         DateTime         @default(now())
+}
+
+model PurchaseRequestStatusHistory {
+  id                Int                    @id @default(autoincrement())
+  purchaseRequestId Int
+  purchaseRequest   PurchaseRequest        @relation(fields: [purchaseRequestId], references: [id])
+  fromStatus        PurchaseRequestStatus?
+  toStatus          PurchaseRequestStatus
+  changedByUserId   Int
+  changedBy         User                   @relation("StatusChangedBy", fields: [changedByUserId], references: [id])
+  changedAt         DateTime               @default(now())
+  note              String?
+}
