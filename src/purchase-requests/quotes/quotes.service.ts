@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { AuthenticatedUser } from '../../auth/types/authenticated-user.type';
 import { PurchaseRequestStatusService } from '../purchase-request-status.service';
@@ -13,10 +17,19 @@ export class QuotesService {
     private readonly purchaseRequestsService: PurchaseRequestsService,
   ) {}
 
-  async create(purchaseRequestId: number, dto: CreateQuoteDto, user: AuthenticatedUser) {
-    const pr = await this.purchaseRequestsService.findOne(purchaseRequestId, user);
+  async create(
+    purchaseRequestId: number,
+    dto: CreateQuoteDto,
+    user: AuthenticatedUser,
+  ) {
+    const pr = await this.purchaseRequestsService.findOne(
+      purchaseRequestId,
+      user,
+    );
 
-    const supplier = await this.prisma.supplier.findUnique({ where: { id: dto.supplierId } });
+    const supplier = await this.prisma.supplier.findUnique({
+      where: { id: dto.supplierId },
+    });
     if (!supplier) {
       throw new NotFoundException('Fornecedor não encontrado.');
     }
@@ -29,8 +42,17 @@ export class QuotesService {
 
     return this.prisma.$transaction(async (tx) => {
       if (pr.status === 'SUBMITTED') {
-        await this.statusService.transitionAndRecord(tx, pr.id, 'SUBMITTED', 'IN_QUOTATION', user.id);
-        await tx.purchaseRequest.update({ where: { id: pr.id }, data: { status: 'IN_QUOTATION' } });
+        await this.statusService.transitionAndRecord(
+          tx,
+          pr.id,
+          'SUBMITTED',
+          'IN_QUOTATION',
+          user.id,
+        );
+        await tx.purchaseRequest.update({
+          where: { id: pr.id },
+          data: { status: 'IN_QUOTATION' },
+        });
       }
 
       return tx.quote.create({
@@ -56,9 +78,13 @@ export class QuotesService {
   }
 
   private async findQuoteOrThrow(purchaseRequestId: number, quoteId: number) {
-    const quote = await this.prisma.quote.findUnique({ where: { id: quoteId } });
+    const quote = await this.prisma.quote.findUnique({
+      where: { id: quoteId },
+    });
     if (!quote || quote.purchaseRequestId !== purchaseRequestId) {
-      throw new NotFoundException('Cotação não encontrada para esta solicitação.');
+      throw new NotFoundException(
+        'Cotação não encontrada para esta solicitação.',
+      );
     }
     return quote;
   }
@@ -69,7 +95,10 @@ export class QuotesService {
     file: Express.Multer.File,
     user: AuthenticatedUser,
   ) {
-    const pr = await this.purchaseRequestsService.findOne(purchaseRequestId, user);
+    const pr = await this.purchaseRequestsService.findOne(
+      purchaseRequestId,
+      user,
+    );
     const quote = await this.findQuoteOrThrow(purchaseRequestId, quoteId);
 
     if (pr.status !== 'SUBMITTED' && pr.status !== 'IN_QUOTATION') {
@@ -89,16 +118,27 @@ export class QuotesService {
         // SharedArrayBuffer) — copy into a plain Uint8Array to satisfy it.
         proposalFileContent: Uint8Array.from(file.buffer),
       },
-      select: { id: true, proposalFileName: true, proposalFileMime: true, proposalFileSize: true },
+      select: {
+        id: true,
+        proposalFileName: true,
+        proposalFileMime: true,
+        proposalFileSize: true,
+      },
     });
   }
 
-  async downloadProposal(purchaseRequestId: number, quoteId: number, user: AuthenticatedUser) {
+  async downloadProposal(
+    purchaseRequestId: number,
+    quoteId: number,
+    user: AuthenticatedUser,
+  ) {
     await this.purchaseRequestsService.findOne(purchaseRequestId, user);
     const quote = await this.findQuoteOrThrow(purchaseRequestId, quoteId);
 
     if (!quote.proposalFileContent) {
-      throw new NotFoundException('Esta cotação ainda não possui um arquivo de proposta anexado.');
+      throw new NotFoundException(
+        'Esta cotação ainda não possui um arquivo de proposta anexado.',
+      );
     }
 
     return {
@@ -108,8 +148,15 @@ export class QuotesService {
     };
   }
 
-  async select(purchaseRequestId: number, quoteId: number, user: AuthenticatedUser) {
-    const pr = await this.purchaseRequestsService.findOne(purchaseRequestId, user);
+  async select(
+    purchaseRequestId: number,
+    quoteId: number,
+    user: AuthenticatedUser,
+  ) {
+    const pr = await this.purchaseRequestsService.findOne(
+      purchaseRequestId,
+      user,
+    );
     const quote = await this.findQuoteOrThrow(purchaseRequestId, quoteId);
 
     if (pr.status !== 'IN_QUOTATION') {
@@ -123,7 +170,10 @@ export class QuotesService {
         where: { purchaseRequestId, id: { not: quote.id } },
         data: { status: 'DISCARDED' },
       });
-      await tx.quote.update({ where: { id: quote.id }, data: { status: 'SELECTED' } });
+      await tx.quote.update({
+        where: { id: quote.id },
+        data: { status: 'SELECTED' },
+      });
 
       await this.statusService.transitionAndRecord(
         tx,

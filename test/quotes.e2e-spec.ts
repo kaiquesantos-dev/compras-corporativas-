@@ -18,7 +18,9 @@ describe('Quotes (e2e)', () => {
 
   beforeAll(async () => {
     cnpjLookupService = { lookup: jest.fn() };
-    const moduleFixture: TestingModule = await Test.createTestingModule({ imports: [AppModule] })
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
       .overrideProvider(CnpjLookupService)
       .useValue(cnpjLookupService)
       .compile();
@@ -41,7 +43,11 @@ describe('Quotes (e2e)', () => {
     const created = await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${requester.token}`)
-      .send({ title: 'Pedido', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
       .expect(201);
 
     await apiRequest(app)
@@ -52,7 +58,10 @@ describe('Quotes (e2e)', () => {
     return created.body.id as number;
   }
 
-  async function createSupplier(buyerToken: string, document: string): Promise<number> {
+  async function createSupplier(
+    buyerToken: string,
+    document: string,
+  ): Promise<number> {
     cnpjLookupService.lookup.mockResolvedValue({
       legalName: 'Fornecedor Real LTDA',
       tradeName: null,
@@ -115,7 +124,11 @@ describe('Quotes (e2e)', () => {
     const created = await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${requester.token}`)
-      .send({ title: 'Pedido', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
       .expect(201);
 
     const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
@@ -140,13 +153,17 @@ describe('Quotes (e2e)', () => {
       .expect(201);
 
     await apiRequest(app)
-      .post(`/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`)
+      .post(
+        `/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`,
+      )
       .set('Authorization', `Bearer ${buyer.token}`)
       .attach('file', Buffer.from('%PDF-1.4 conteudo de teste'), 'proposta.pdf')
       .expect(201);
 
     await apiRequest(app)
-      .post(`/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`)
+      .post(
+        `/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`,
+      )
       .set('Authorization', `Bearer ${buyer.token}`)
       .attach('file', Buffer.from('conteudo qualquer'), 'proposta.exe')
       .expect(400);
@@ -166,7 +183,9 @@ describe('Quotes (e2e)', () => {
     const oversized = Buffer.alloc(6 * 1024 * 1024, 0);
 
     await apiRequest(app)
-      .post(`/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`)
+      .post(
+        `/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`,
+      )
       .set('Authorization', `Bearer ${buyer.token}`)
       .attach('file', oversized, 'proposta.pdf')
       .expect(400);
@@ -184,13 +203,17 @@ describe('Quotes (e2e)', () => {
       .expect(201);
 
     await apiRequest(app)
-      .post(`/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`)
+      .post(
+        `/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`,
+      )
       .set('Authorization', `Bearer ${buyer.token}`)
       .attach('file', Buffer.from('%PDF-1.4 conteudo de teste'), 'proposta.pdf')
       .expect(201);
 
     const download = await apiRequest(app)
-      .get(`/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`)
+      .get(
+        `/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`,
+      )
       .set('Authorization', `Bearer ${buyer.token}`)
       .expect(200);
 
@@ -209,7 +232,9 @@ describe('Quotes (e2e)', () => {
       .expect(201);
 
     await apiRequest(app)
-      .get(`/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`)
+      .get(
+        `/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`,
+      )
       .set('Authorization', `Bearer ${buyer.token}`)
       .expect(404);
   });
@@ -233,7 +258,9 @@ describe('Quotes (e2e)', () => {
       .expect(201);
 
     const selected = await apiRequest(app)
-      .post(`/purchase-requests/${purchaseRequestId}/quotes/${quoteB.body.id}/select`)
+      .post(
+        `/purchase-requests/${purchaseRequestId}/quotes/${quoteB.body.id}/select`,
+      )
       .set('Authorization', `Bearer ${buyer.token}`)
       .expect(200);
     expect(selected.body.status).toBe('PENDING_APPROVAL');

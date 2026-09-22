@@ -46,7 +46,10 @@ describe('Departments (e2e)', () => {
   });
 
   it('rejects creation without a token with 401', async () => {
-    await apiRequest(app).post('/departments').send({ name: 'Financeiro' }).expect(401);
+    await apiRequest(app)
+      .post('/departments')
+      .send({ name: 'Financeiro' })
+      .expect(401);
   });
 
   it('lets any authenticated role list departments', async () => {

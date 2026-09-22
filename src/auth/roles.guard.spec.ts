@@ -32,7 +32,9 @@ describe('RolesGuard', () => {
       getAllAndOverride: jest.fn().mockReturnValue(['ADMIN']),
     } as unknown as Reflector;
     const guard = new RolesGuard(reflector);
-    expect(() => guard.canActivate(buildContext({ role: 'REQUESTER' }))).toThrow();
+    expect(() =>
+      guard.canActivate(buildContext({ role: 'REQUESTER' })),
+    ).toThrow();
   });
 
   it('throws when there is no authenticated user at all', () => {

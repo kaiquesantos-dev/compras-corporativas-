@@ -21,7 +21,9 @@ export class UsersService {
 
   private async assertDepartmentExists(departmentId?: number) {
     if (!departmentId) return;
-    const department = await this.prisma.department.findUnique({ where: { id: departmentId } });
+    const department = await this.prisma.department.findUnique({
+      where: { id: departmentId },
+    });
     if (!department) {
       throw new NotFoundException('Departamento informado não existe.');
     }
@@ -53,7 +55,10 @@ export class UsersService {
   }
 
   async findOne(id: number) {
-    const user = await this.prisma.user.findUnique({ where: { id }, select: USER_SELECT });
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: USER_SELECT,
+    });
     if (!user) {
       throw new NotFoundException('Usuário não encontrado.');
     }
@@ -69,7 +74,11 @@ export class UsersService {
       data.password = await bcrypt.hash(dto.password, 10);
     }
 
-    return this.prisma.user.update({ where: { id }, data, select: USER_SELECT });
+    return this.prisma.user.update({
+      where: { id },
+      data,
+      select: USER_SELECT,
+    });
   }
 
   async remove(id: number) {

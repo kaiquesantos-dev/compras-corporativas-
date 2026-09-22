@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPaginationParams } from '../common/pagination/paginate';
 import { onlyDigits } from '../common/validators/is-cnpj.validator';
@@ -35,7 +39,8 @@ export class SuppliersService {
         street: dto.street ?? enrichment?.street ?? null,
         city: dto.city ?? enrichment?.city ?? null,
         state: dto.state ?? enrichment?.state ?? null,
-        federalRegistrationStatus: enrichment?.federalRegistrationStatus ?? null,
+        federalRegistrationStatus:
+          enrichment?.federalRegistrationStatus ?? null,
       },
     });
   }
@@ -46,7 +51,8 @@ export class SuppliersService {
       ['createdAt', 'legalName'],
       'createdAt',
     );
-    const where = query.isActive !== undefined ? { isActive: query.isActive } : {};
+    const where =
+      query.isActive !== undefined ? { isActive: query.isActive } : {};
 
     const [data, total] = await Promise.all([
       this.prisma.supplier.findMany({ skip, take, orderBy, where }),
@@ -67,7 +73,9 @@ export class SuppliersService {
   async update(id: number, dto: UpdateSupplierDto) {
     await this.findOne(id);
 
-    const enrichment = dto.document ? await this.cnpjLookupService.lookup(dto.document) : null;
+    const enrichment = dto.document
+      ? await this.cnpjLookupService.lookup(dto.document)
+      : null;
 
     return this.prisma.supplier.update({
       where: { id },
@@ -81,7 +89,8 @@ export class SuppliersService {
         street: dto.street ?? enrichment?.street ?? undefined,
         city: dto.city ?? enrichment?.city ?? undefined,
         state: dto.state ?? enrichment?.state ?? undefined,
-        federalRegistrationStatus: enrichment?.federalRegistrationStatus ?? undefined,
+        federalRegistrationStatus:
+          enrichment?.federalRegistrationStatus ?? undefined,
         isActive: dto.isActive,
       },
     });

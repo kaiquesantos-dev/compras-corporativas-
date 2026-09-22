@@ -10,7 +10,8 @@ const STATUS_BY_CODE: Record<string, number> = {
 
 const MESSAGE_BY_CODE: Record<string, string> = {
   P2002: 'Já existe um registro com esse valor único.',
-  P2003: 'Operação viola um relacionamento existente (registro referenciado por outro).',
+  P2003:
+    'Operação viola um relacionamento existente (registro referenciado por outro).',
   P2025: 'Registro não encontrado.',
 };
 
@@ -24,7 +25,8 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<{ url: string }>();
 
     const status = STATUS_BY_CODE[exception.code] ?? 500;
-    const message = MESSAGE_BY_CODE[exception.code] ?? 'Erro interno inesperado.';
+    const message =
+      MESSAGE_BY_CODE[exception.code] ?? 'Erro interno inesperado.';
 
     if (status === 500) {
       this.logger.error(

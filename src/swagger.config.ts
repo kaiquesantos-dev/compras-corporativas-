@@ -20,7 +20,10 @@ DRAFT → SUBMITTED → IN_QUOTATION → PENDING_APPROVAL → APPROVED → COMPL
 Toda rota exige o header \`X-API-KEY\`. A maioria das rotas também exige um token JWT (\`Authorization: Bearer <token>\`), obtido via \`POST /auth/login\`.`,
     )
     .setVersion('1.0')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'bearer')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'bearer',
+    )
     .addApiKey({ type: 'apiKey', name: 'X-API-KEY', in: 'header' }, 'x-api-key')
     .build();
 

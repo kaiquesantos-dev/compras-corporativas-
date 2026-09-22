@@ -24,7 +24,8 @@ export async function seedUserAndLogin(
   role: Role,
   overrides: { email?: string; departmentId?: number } = {},
 ): Promise<SeededUser> {
-  const email = overrides.email ?? `${role.toLowerCase()}-${uniqueSuffix()}@teste.com`;
+  const email =
+    overrides.email ?? `${role.toLowerCase()}-${uniqueSuffix()}@teste.com`;
   const password = 'senha123';
   const passwordHash = await bcrypt.hash(password, 10);
 
@@ -46,7 +47,13 @@ export async function seedUserAndLogin(
     .send({ email, password })
     .expect(200);
 
-  return { id: user.id, email, role, departmentId, token: response.body.access_token as string };
+  return {
+    id: user.id,
+    email,
+    role,
+    departmentId,
+    token: response.body.access_token as string,
+  };
 }
 
 /** Convenience wrapper so every e2e spec attaches X-API-KEY without repeating it. */

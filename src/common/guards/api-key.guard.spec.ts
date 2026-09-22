@@ -14,7 +14,9 @@ describe('ApiKeyGuard', () => {
       getOrThrow: jest.fn().mockReturnValue('minha-chave'),
     } as unknown as ConfigService;
     const guard = new ApiKeyGuard(configService);
-    expect(guard.canActivate(buildContext({ 'x-api-key': 'minha-chave' }))).toBe(true);
+    expect(
+      guard.canActivate(buildContext({ 'x-api-key': 'minha-chave' })),
+    ).toBe(true);
   });
 
   it('throws UnauthorizedException when the header is missing', () => {
@@ -22,7 +24,9 @@ describe('ApiKeyGuard', () => {
       getOrThrow: jest.fn().mockReturnValue('minha-chave'),
     } as unknown as ConfigService;
     const guard = new ApiKeyGuard(configService);
-    expect(() => guard.canActivate(buildContext({}))).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(buildContext({}))).toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('throws UnauthorizedException when the header does not match', () => {

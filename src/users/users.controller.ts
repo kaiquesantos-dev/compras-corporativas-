@@ -10,7 +10,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -34,9 +40,18 @@ export class UsersController {
     description: 'Cria um novo usuário no sistema. Restrito a ADMIN.',
   })
   @ApiResponse({ status: 201, description: 'Usuário criado com sucesso.' })
-  @ApiResponse({ status: 400, description: 'Dados inválidos no corpo da requisição.' })
-  @ApiResponse({ status: 404, description: 'Departamento informado não existe.' })
-  @ApiResponse({ status: 409, description: 'Já existe um usuário com esse email.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Dados inválidos no corpo da requisição.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Departamento informado não existe.',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Já existe um usuário com esse email.',
+  })
   create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
   }
@@ -44,7 +59,8 @@ export class UsersController {
   @Get()
   @ApiOperation({
     summary: 'Listar usuários',
-    description: 'Lista usuários com paginação e ordenação. Nunca retorna a senha.',
+    description:
+      'Lista usuários com paginação e ordenação. Nunca retorna a senha.',
   })
   findAll(@Query() query: PaginationQueryDto) {
     return this.usersService.findAll(query);
@@ -59,7 +75,10 @@ export class UsersController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar usuário' })
-  @ApiResponse({ status: 404, description: 'Usuário ou departamento não encontrado.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Usuário ou departamento não encontrado.',
+  })
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
   }
@@ -69,7 +88,8 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
   @ApiResponse({
     status: 409,
-    description: 'Usuário possui registros vinculados (ex: solicitações de compra criadas por ele).',
+    description:
+      'Usuário possui registros vinculados (ex: solicitações de compra criadas por ele).',
   })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);

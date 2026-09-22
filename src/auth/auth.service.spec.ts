@@ -34,7 +34,9 @@ describe('AuthService', () => {
 
   it('throws UnauthorizedException when the user does not exist', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
-    await expect(service.login('nope@a.com', 'x')).rejects.toThrow(UnauthorizedException);
+    await expect(service.login('nope@a.com', 'x')).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('throws UnauthorizedException when the password does not match', async () => {
@@ -45,6 +47,8 @@ describe('AuthService', () => {
       password: hashed,
       role: 'ADMIN',
     });
-    await expect(service.login('a@a.com', 'wrong')).rejects.toThrow(UnauthorizedException);
+    await expect(service.login('a@a.com', 'wrong')).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 });

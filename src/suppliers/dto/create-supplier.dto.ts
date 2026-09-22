@@ -35,22 +35,34 @@ export class CreateSupplierDto {
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ description: 'Preenchido automaticamente via CNPJ se omitido.', example: '01311902' })
+  @ApiPropertyOptional({
+    description: 'Preenchido automaticamente via CNPJ se omitido.',
+    example: '01311902',
+  })
   @IsOptional()
   @IsString()
   zipCode?: string;
 
-  @ApiPropertyOptional({ description: 'Preenchido automaticamente via CNPJ se omitido.', example: 'Avenida Paulista, 37' })
+  @ApiPropertyOptional({
+    description: 'Preenchido automaticamente via CNPJ se omitido.',
+    example: 'Avenida Paulista, 37',
+  })
   @IsOptional()
   @IsString()
   street?: string;
 
-  @ApiPropertyOptional({ description: 'Preenchido automaticamente via CNPJ se omitido.', example: 'São Paulo' })
+  @ApiPropertyOptional({
+    description: 'Preenchido automaticamente via CNPJ se omitido.',
+    example: 'São Paulo',
+  })
   @IsOptional()
   @IsString()
   city?: string;
 
-  @ApiPropertyOptional({ description: 'Preenchido automaticamente via CNPJ se omitido.', example: 'SP' })
+  @ApiPropertyOptional({
+    description: 'Preenchido automaticamente via CNPJ se omitido.',
+    example: 'SP',
+  })
   @IsOptional()
   @IsString()
   state?: string;

@@ -6,7 +6,11 @@ import { PurchaseRequestsMetricsService } from './purchase-requests-metrics.serv
 
 @Module({
   controllers: [PurchaseRequestsController],
-  providers: [PurchaseRequestsService, PurchaseRequestStatusService, PurchaseRequestsMetricsService],
+  providers: [
+    PurchaseRequestsService,
+    PurchaseRequestStatusService,
+    PurchaseRequestsMetricsService,
+  ],
   exports: [PurchaseRequestsService, PurchaseRequestStatusService],
 })
 export class PurchaseRequestsModule {}

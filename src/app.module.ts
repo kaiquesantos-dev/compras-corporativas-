@@ -38,7 +38,11 @@ import { AppService } from './app.service';
     { provide: APP_GUARD, useClass: ApiKeyGuard },
     {
       provide: APP_PIPE,
-      useValue: new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+      useValue: new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
     },
     { provide: APP_FILTER, useClass: PrismaExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },

@@ -11,7 +11,9 @@ describe('CnpjLookupService', () => {
     httpService = { get: jest.fn() };
     configService = {
       getOrThrow: jest.fn((key: string) =>
-        key === 'CNPJ_API_BASE_URL' ? 'https://brasilapi.com.br/api/cnpj/v1' : 3000,
+        key === 'CNPJ_API_BASE_URL'
+          ? 'https://brasilapi.com.br/api/cnpj/v1'
+          : 3000,
       ),
     } as unknown as ConfigService;
     service = new CnpjLookupService(httpService as any, configService);

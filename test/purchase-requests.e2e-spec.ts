@@ -51,7 +51,11 @@ describe('PurchaseRequests (e2e)', () => {
     await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${requester.token}`)
-      .send({ title: 'Sem itens', justification: 'Justificativa qualquer aqui.', items: [] })
+      .send({
+        title: 'Sem itens',
+        justification: 'Justificativa qualquer aqui.',
+        items: [],
+      })
       .expect(400);
   });
 
@@ -61,7 +65,11 @@ describe('PurchaseRequests (e2e)', () => {
     await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${buyer.token}`)
-      .send({ title: 'X', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+      .send({
+        title: 'X',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
       .expect(403);
   });
 
@@ -74,7 +82,11 @@ describe('PurchaseRequests (e2e)', () => {
       await apiRequest(app)
         .post('/purchase-requests')
         .set('Authorization', `Bearer ${req.token}`)
-        .send({ title: 'Pedido', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+        .send({
+          title: 'Pedido',
+          justification: 'Justificativa qualquer aqui.',
+          items: [validItem],
+        })
         .expect(201);
     }
 
@@ -98,7 +110,11 @@ describe('PurchaseRequests (e2e)', () => {
     const created = await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${requesterA.token}`)
-      .send({ title: 'Pedido', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
       .expect(201);
 
     await apiRequest(app)
@@ -122,7 +138,11 @@ describe('PurchaseRequests (e2e)', () => {
     const created = await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${requester.token}`)
-      .send({ title: 'Pedido', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
       .expect(201);
 
     const submitted = await apiRequest(app)
@@ -139,7 +159,11 @@ describe('PurchaseRequests (e2e)', () => {
     const created = await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${requester.token}`)
-      .send({ title: 'Pedido', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
       .expect(201);
 
     await apiRequest(app)
@@ -160,7 +184,11 @@ describe('PurchaseRequests (e2e)', () => {
     const created = await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${requesterA.token}`)
-      .send({ title: 'Pedido', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
       .expect(201);
 
     await apiRequest(app)
@@ -175,7 +203,11 @@ describe('PurchaseRequests (e2e)', () => {
     const created = await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${requester.token}`)
-      .send({ title: 'Pedido', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
       .expect(201);
 
     await apiRequest(app)
@@ -189,7 +221,10 @@ describe('PurchaseRequests (e2e)', () => {
       .expect(200);
 
     expect(history.body).toHaveLength(1);
-    expect(history.body[0]).toMatchObject({ fromStatus: 'DRAFT', toStatus: 'SUBMITTED' });
+    expect(history.body[0]).toMatchObject({
+      fromStatus: 'DRAFT',
+      toStatus: 'SUBMITTED',
+    });
   });
 
   it('lets the owner cancel, but blocks cancelling from a terminal state', async () => {
@@ -198,7 +233,11 @@ describe('PurchaseRequests (e2e)', () => {
     const created = await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${requester.token}`)
-      .send({ title: 'Pedido', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
       .expect(201);
 
     const cancelled = await apiRequest(app)

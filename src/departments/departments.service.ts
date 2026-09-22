@@ -14,7 +14,11 @@ export class DepartmentsService {
   }
 
   async findAll(query: PaginationQueryDto) {
-    const { skip, take, orderBy } = buildPaginationParams(query, ['createdAt', 'name'], 'name');
+    const { skip, take, orderBy } = buildPaginationParams(
+      query,
+      ['createdAt', 'name'],
+      'name',
+    );
     const [data, total] = await Promise.all([
       this.prisma.department.findMany({ skip, take, orderBy }),
       this.prisma.department.count(),
@@ -23,7 +27,9 @@ export class DepartmentsService {
   }
 
   async findOne(id: number) {
-    const department = await this.prisma.department.findUnique({ where: { id } });
+    const department = await this.prisma.department.findUnique({
+      where: { id },
+    });
     if (!department) {
       throw new NotFoundException('Departamento não encontrado.');
     }

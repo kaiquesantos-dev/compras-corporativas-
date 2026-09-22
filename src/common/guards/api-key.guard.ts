@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 
@@ -12,7 +17,9 @@ export class ApiKeyGuard implements CanActivate {
     const expectedKey = this.configService.getOrThrow<string>('API_KEY');
 
     if (!providedKey || providedKey !== expectedKey) {
-      throw new UnauthorizedException('Chave de API ausente ou inválida (header X-API-KEY).');
+      throw new UnauthorizedException(
+        'Chave de API ausente ou inválida (header X-API-KEY).',
+      );
     }
 
     return true;

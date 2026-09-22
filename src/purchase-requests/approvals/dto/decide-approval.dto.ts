@@ -3,7 +3,11 @@ import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { ApprovalDecision } from '../../../generated/prisma/client';
 
 export class DecideApprovalDto {
-  @ApiProperty({ description: 'Decisão do aprovador.', enum: ApprovalDecision, example: 'APPROVED' })
+  @ApiProperty({
+    description: 'Decisão do aprovador.',
+    enum: ApprovalDecision,
+    example: 'APPROVED',
+  })
   @IsEnum(ApprovalDecision)
   decision: ApprovalDecision;
 

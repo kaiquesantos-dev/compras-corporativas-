@@ -48,7 +48,12 @@ describe('Users (e2e)', () => {
   it('rejects creation without a token with 401', async () => {
     await apiRequest(app)
       .post('/users')
-      .send({ name: 'XX', email: 'x@teste.com', password: 'senha123', role: 'REQUESTER' })
+      .send({
+        name: 'XX',
+        email: 'x@teste.com',
+        password: 'senha123',
+        role: 'REQUESTER',
+      })
       .expect(401);
   });
 
@@ -56,7 +61,12 @@ describe('Users (e2e)', () => {
     await apiRequest(app)
       .post('/users')
       .set('Authorization', 'Bearer token-invalido')
-      .send({ name: 'XX', email: 'x@teste.com', password: 'senha123', role: 'REQUESTER' })
+      .send({
+        name: 'XX',
+        email: 'x@teste.com',
+        password: 'senha123',
+        role: 'REQUESTER',
+      })
       .expect(401);
   });
 
@@ -66,7 +76,12 @@ describe('Users (e2e)', () => {
     await apiRequest(app)
       .post('/users')
       .set('Authorization', `Bearer ${requester.token}`)
-      .send({ name: 'XX', email: 'x@teste.com', password: 'senha123', role: 'REQUESTER' })
+      .send({
+        name: 'XX',
+        email: 'x@teste.com',
+        password: 'senha123',
+        role: 'REQUESTER',
+      })
       .expect(403);
   });
 
@@ -76,7 +91,12 @@ describe('Users (e2e)', () => {
     await apiRequest(app)
       .post('/users')
       .set('Authorization', `Bearer ${admin.token}`)
-      .send({ name: 'XX', email: 'nao-e-email', password: '123', role: 'REQUESTER' })
+      .send({
+        name: 'XX',
+        email: 'nao-e-email',
+        password: '123',
+        role: 'REQUESTER',
+      })
       .expect(400);
   });
 
@@ -97,7 +117,9 @@ describe('Users (e2e)', () => {
   });
 
   it('returns 409 when the email is already registered', async () => {
-    const admin = await seedUserAndLogin(app, prisma, 'ADMIN', { email: 'admin@teste.com' });
+    const admin = await seedUserAndLogin(app, prisma, 'ADMIN', {
+      email: 'admin@teste.com',
+    });
 
     await apiRequest(app)
       .post('/users')

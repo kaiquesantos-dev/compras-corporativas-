@@ -10,7 +10,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -30,15 +36,24 @@ export class DepartmentsController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
-  @ApiOperation({ summary: 'Criar departamento', description: 'Restrito a ADMIN.' })
+  @ApiOperation({
+    summary: 'Criar departamento',
+    description: 'Restrito a ADMIN.',
+  })
   @ApiResponse({ status: 201, description: 'Departamento criado.' })
-  @ApiResponse({ status: 409, description: 'Já existe um departamento com esse nome.' })
+  @ApiResponse({
+    status: 409,
+    description: 'Já existe um departamento com esse nome.',
+  })
   create(@Body() dto: CreateDepartmentDto) {
     return this.departmentsService.create(dto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Listar departamentos', description: 'Qualquer usuário autenticado.' })
+  @ApiOperation({
+    summary: 'Listar departamentos',
+    description: 'Qualquer usuário autenticado.',
+  })
   findAll(@Query() query: PaginationQueryDto) {
     return this.departmentsService.findAll(query);
   }
@@ -53,15 +68,24 @@ export class DepartmentsController {
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
-  @ApiOperation({ summary: 'Atualizar departamento', description: 'Restrito a ADMIN.' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDepartmentDto) {
+  @ApiOperation({
+    summary: 'Atualizar departamento',
+    description: 'Restrito a ADMIN.',
+  })
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateDepartmentDto,
+  ) {
     return this.departmentsService.update(id, dto);
   }
 
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
-  @ApiOperation({ summary: 'Remover departamento', description: 'Restrito a ADMIN.' })
+  @ApiOperation({
+    summary: 'Remover departamento',
+    description: 'Restrito a ADMIN.',
+  })
   @ApiResponse({
     status: 409,
     description: 'Departamento possui usuários ou solicitações vinculadas.',

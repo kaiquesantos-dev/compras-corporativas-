@@ -2,7 +2,9 @@ import { CallHandler, ExecutionContext } from '@nestjs/common';
 import { of } from 'rxjs';
 import { LoggingInterceptor } from './logging.interceptor';
 
-function buildContext(overrides: Partial<{ user: { id: number; role: string } }> = {}) {
+function buildContext(
+  overrides: Partial<{ user: { id: number; role: string } }> = {},
+) {
   const request = {
     method: 'GET',
     originalUrl: '/purchase-requests',
@@ -24,7 +26,9 @@ describe('LoggingInterceptor', () => {
     const context = buildContext({ user: { id: 7, role: 'ADMIN' } });
     const next: CallHandler = { handle: () => of({ ok: true }) };
 
-    const logSpy = jest.spyOn((interceptor as any).logger, 'log').mockImplementation();
+    const logSpy = jest
+      .spyOn((interceptor as any).logger, 'log')
+      .mockImplementation();
 
     interceptor.intercept(context, next).subscribe(() => {
       expect(logSpy).toHaveBeenCalledTimes(1);
@@ -46,7 +50,9 @@ describe('LoggingInterceptor', () => {
     const context = buildContext();
     const next: CallHandler = { handle: () => of({ ok: true }) };
 
-    const logSpy = jest.spyOn((interceptor as any).logger, 'log').mockImplementation();
+    const logSpy = jest
+      .spyOn((interceptor as any).logger, 'log')
+      .mockImplementation();
 
     interceptor.intercept(context, next).subscribe(() => {
       const logged = JSON.parse(logSpy.mock.calls[0][0] as string);

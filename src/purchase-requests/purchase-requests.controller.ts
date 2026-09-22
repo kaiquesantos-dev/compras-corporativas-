@@ -10,7 +10,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -38,20 +44,31 @@ export class PurchaseRequestsController {
   @Roles('REQUESTER')
   @ApiOperation({
     summary: 'Criar solicitação de compra',
-    description: 'Cria uma solicitação em DRAFT com seus itens. Restrito a REQUESTER.',
+    description:
+      'Cria uma solicitação em DRAFT com seus itens. Restrito a REQUESTER.',
   })
   @ApiResponse({ status: 201, description: 'Solicitação criada em DRAFT.' })
-  @ApiResponse({ status: 400, description: 'Dados inválidos (ex: nenhum item informado).' })
-  create(@Body() dto: CreatePurchaseRequestDto, @CurrentUser() user: AuthenticatedUser) {
+  @ApiResponse({
+    status: 400,
+    description: 'Dados inválidos (ex: nenhum item informado).',
+  })
+  create(
+    @Body() dto: CreatePurchaseRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.service.create(dto, user);
   }
 
   @Get()
   @ApiOperation({
     summary: 'Listar solicitações de compra',
-    description: 'REQUESTER vê apenas as próprias; BUYER/APPROVER/ADMIN veem todas.',
+    description:
+      'REQUESTER vê apenas as próprias; BUYER/APPROVER/ADMIN veem todas.',
   })
-  findAll(@Query() query: PurchaseRequestQueryDto, @CurrentUser() user: AuthenticatedUser) {
+  findAll(
+    @Query() query: PurchaseRequestQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.service.findAll(query, user);
   }
 
@@ -72,17 +89,29 @@ export class PurchaseRequestsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Buscar solicitação por ID' })
-  @ApiResponse({ status: 403, description: 'REQUESTER tentando acessar solicitação de outro usuário.' })
+  @ApiResponse({
+    status: 403,
+    description: 'REQUESTER tentando acessar solicitação de outro usuário.',
+  })
   @ApiResponse({ status: 404, description: 'Solicitação não encontrada.' })
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.service.findOne(id, user);
   }
 
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles('REQUESTER')
-  @ApiOperation({ summary: 'Editar solicitação', description: 'Somente o dono, e somente em DRAFT.' })
-  @ApiResponse({ status: 409, description: 'Solicitação não está mais em DRAFT.' })
+  @ApiOperation({
+    summary: 'Editar solicitação',
+    description: 'Somente o dono, e somente em DRAFT.',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Solicitação não está mais em DRAFT.',
+  })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePurchaseRequestDto,
@@ -95,9 +124,15 @@ export class PurchaseRequestsController {
   @HttpCode(200)
   @UseGuards(RolesGuard)
   @Roles('REQUESTER')
-  @ApiOperation({ summary: 'Submeter solicitação para cotação', description: 'DRAFT -> SUBMITTED.' })
+  @ApiOperation({
+    summary: 'Submeter solicitação para cotação',
+    description: 'DRAFT -> SUBMITTED.',
+  })
   @ApiResponse({ status: 409, description: 'Solicitação não está em DRAFT.' })
-  submit(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  submit(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.service.submit(id, user);
   }
 
@@ -109,8 +144,14 @@ export class PurchaseRequestsController {
     summary: 'Cancelar solicitação',
     description: 'Permitido a partir de DRAFT, SUBMITTED ou IN_QUOTATION.',
   })
-  @ApiResponse({ status: 409, description: 'Estado atual não permite cancelamento.' })
-  cancel(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  @ApiResponse({
+    status: 409,
+    description: 'Estado atual não permite cancelamento.',
+  })
+  cancel(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.service.cancel(id, user);
   }
 
@@ -118,18 +159,31 @@ export class PurchaseRequestsController {
   @HttpCode(200)
   @UseGuards(RolesGuard)
   @Roles('BUYER', 'ADMIN')
-  @ApiOperation({ summary: 'Concluir solicitação', description: 'APPROVED -> COMPLETED.' })
-  @ApiResponse({ status: 409, description: 'Solicitação não está em APPROVED.' })
-  complete(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  @ApiOperation({
+    summary: 'Concluir solicitação',
+    description: 'APPROVED -> COMPLETED.',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Solicitação não está em APPROVED.',
+  })
+  complete(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.service.complete(id, user);
   }
 
   @Get(':id/history')
   @ApiOperation({
     summary: 'Histórico de mudanças de status',
-    description: 'Lista cada transição de estado registrada para a solicitação.',
+    description:
+      'Lista cada transição de estado registrada para a solicitação.',
   })
-  history(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  history(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.service.history(id, user);
   }
 }

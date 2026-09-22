@@ -36,7 +36,9 @@ describe('SuppliersService', () => {
         Promise.resolve({ id: 1, ...data }),
       );
 
-      const result: any = await service.create({ document: '19131243000197' } as any);
+      const result: any = await service.create({
+        document: '19131243000197',
+      });
 
       expect(result.legalName).toBe('Fornecedor Real LTDA');
       expect(result.city).toBe('São Paulo');
@@ -59,7 +61,7 @@ describe('SuppliersService', () => {
       const result: any = await service.create({
         document: '19131243000197',
         tradeName: 'Nome Escolhido Pelo Comprador',
-      } as any);
+      });
 
       expect(result.tradeName).toBe('Nome Escolhido Pelo Comprador');
       expect(result.legalName).toBe('Nome Oficial LTDA');
@@ -74,7 +76,7 @@ describe('SuppliersService', () => {
       const result: any = await service.create({
         document: '19131243000197',
         legalName: 'Fornecedor Informado Manualmente LTDA',
-      } as any);
+      });
 
       expect(result.legalName).toBe('Fornecedor Informado Manualmente LTDA');
     });

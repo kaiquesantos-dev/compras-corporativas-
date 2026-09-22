@@ -1,5 +1,20 @@
-import { Body, Controller, Get, HttpCode, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseIntPipe,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../auth/roles.decorator';
@@ -26,7 +41,10 @@ export class ApprovalsController {
       'Aprova ou rejeita a solicitação que está em PENDING_APPROVAL. REJECTED é terminal: nenhuma ação futura é permitida sobre a solicitação.',
   })
   @ApiResponse({ status: 200, description: 'Decisão registrada.' })
-  @ApiResponse({ status: 409, description: 'Solicitação não está em PENDING_APPROVAL.' })
+  @ApiResponse({
+    status: 409,
+    description: 'Solicitação não está em PENDING_APPROVAL.',
+  })
   decide(
     @Param('purchaseRequestId', ParseIntPipe) purchaseRequestId: number,
     @Body() dto: DecideApprovalDto,
@@ -37,7 +55,10 @@ export class ApprovalsController {
 
   @Get()
   @ApiOperation({ summary: 'Consultar decisão de aprovação' })
-  @ApiResponse({ status: 404, description: 'Solicitação ainda não possui decisão.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Solicitação ainda não possui decisão.',
+  })
   findOne(
     @Param('purchaseRequestId', ParseIntPipe) purchaseRequestId: number,
     @CurrentUser() user: AuthenticatedUser,

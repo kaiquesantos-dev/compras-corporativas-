@@ -1,4 +1,9 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPaginationParams } from '../common/pagination/paginate';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.type';
@@ -16,7 +21,9 @@ export class PurchaseRequestsService {
   ) {}
 
   async create(dto: CreatePurchaseRequestDto, user: AuthenticatedUser) {
-    const requester = await this.prisma.user.findUnique({ where: { id: user.id } });
+    const requester = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    });
     if (!requester?.departmentId) {
       throw new ConflictException(
         'Usuário não possui departamento vinculado; não é possível criar uma solicitação.',
@@ -82,10 +89,16 @@ export class PurchaseRequestsService {
     return pr;
   }
 
-  async update(id: number, dto: UpdatePurchaseRequestDto, user: AuthenticatedUser) {
+  async update(
+    id: number,
+    dto: UpdatePurchaseRequestDto,
+    user: AuthenticatedUser,
+  ) {
     const pr = await this.findOwnedForWrite(id, user);
     if (pr.status !== 'DRAFT') {
-      throw new ConflictException('Só é possível editar uma solicitação enquanto ela está em DRAFT.');
+      throw new ConflictException(
+        'Só é possível editar uma solicitação enquanto ela está em DRAFT.',
+      );
     }
     return this.prisma.purchaseRequest.update({
       where: { id },
@@ -97,7 +110,13 @@ export class PurchaseRequestsService {
   async submit(id: number, user: AuthenticatedUser) {
     const pr = await this.findOwnedForWrite(id, user);
     return this.prisma.$transaction(async (tx) => {
-      await this.statusService.transitionAndRecord(tx, pr.id, pr.status, 'SUBMITTED', user.id);
+      await this.statusService.transitionAndRecord(
+        tx,
+        pr.id,
+        pr.status,
+        'SUBMITTED',
+        user.id,
+      );
       return tx.purchaseRequest.update({
         where: { id: pr.id },
         data: { status: 'SUBMITTED', submittedAt: new Date() },
@@ -111,11 +130,19 @@ export class PurchaseRequestsService {
       throw new NotFoundException('Solicitação de compra não encontrada.');
     }
     if (user.role !== 'ADMIN' && pr.requesterId !== user.id) {
-      throw new ForbiddenException('Você não tem acesso a esta solicitação de compra.');
+      throw new ForbiddenException(
+        'Você não tem acesso a esta solicitação de compra.',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
-      await this.statusService.transitionAndRecord(tx, pr.id, pr.status, 'CANCELLED', user.id);
+      await this.statusService.transitionAndRecord(
+        tx,
+        pr.id,
+        pr.status,
+        'CANCELLED',
+        user.id,
+      );
       return tx.purchaseRequest.update({
         where: { id: pr.id },
         data: { status: 'CANCELLED', cancelledAt: new Date() },
@@ -130,7 +157,13 @@ export class PurchaseRequestsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      await this.statusService.transitionAndRecord(tx, pr.id, pr.status, 'COMPLETED', user.id);
+      await this.statusService.transitionAndRecord(
+        tx,
+        pr.id,
+        pr.status,
+        'COMPLETED',
+        user.id,
+      );
       return tx.purchaseRequest.update({
         where: { id: pr.id },
         data: { status: 'COMPLETED', completedAt: new Date() },
@@ -151,9 +184,14 @@ export class PurchaseRequestsService {
     });
   }
 
-  private assertViewAccess(pr: { requesterId: number }, user: AuthenticatedUser) {
+  private assertViewAccess(
+    pr: { requesterId: number },
+    user: AuthenticatedUser,
+  ) {
     if (user.role === 'REQUESTER' && pr.requesterId !== user.id) {
-      throw new ForbiddenException('Você não tem acesso a esta solicitação de compra.');
+      throw new ForbiddenException(
+        'Você não tem acesso a esta solicitação de compra.',
+      );
     }
   }
 
@@ -163,7 +201,9 @@ export class PurchaseRequestsService {
       throw new NotFoundException('Solicitação de compra não encontrada.');
     }
     if (pr.requesterId !== user.id) {
-      throw new ForbiddenException('Você não tem acesso a esta solicitação de compra.');
+      throw new ForbiddenException(
+        'Você não tem acesso a esta solicitação de compra.',
+      );
     }
     return pr;
   }

@@ -1,7 +1,10 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { Prisma, PurchaseRequestStatus } from '../generated/prisma/client';
 
-const ALLOWED_TRANSITIONS: Record<PurchaseRequestStatus, PurchaseRequestStatus[]> = {
+const ALLOWED_TRANSITIONS: Record<
+  PurchaseRequestStatus,
+  PurchaseRequestStatus[]
+> = {
   DRAFT: ['SUBMITTED', 'CANCELLED'],
   SUBMITTED: ['IN_QUOTATION', 'CANCELLED'],
   IN_QUOTATION: ['PENDING_APPROVAL', 'CANCELLED'],
@@ -14,9 +17,14 @@ const ALLOWED_TRANSITIONS: Record<PurchaseRequestStatus, PurchaseRequestStatus[]
 
 @Injectable()
 export class PurchaseRequestStatusService {
-  assertTransition(from: PurchaseRequestStatus, to: PurchaseRequestStatus): void {
+  assertTransition(
+    from: PurchaseRequestStatus,
+    to: PurchaseRequestStatus,
+  ): void {
     if (!ALLOWED_TRANSITIONS[from].includes(to)) {
-      throw new ConflictException(`Não é possível mudar o status de ${from} para ${to}.`);
+      throw new ConflictException(
+        `Não é possível mudar o status de ${from} para ${to}.`,
+      );
     }
   }
 
@@ -30,7 +38,13 @@ export class PurchaseRequestStatusService {
   ): Promise<void> {
     this.assertTransition(from, to);
     await tx.purchaseRequestStatusHistory.create({
-      data: { purchaseRequestId, fromStatus: from, toStatus: to, changedByUserId, note },
+      data: {
+        purchaseRequestId,
+        fromStatus: from,
+        toStatus: to,
+        changedByUserId,
+        note,
+      },
     });
   }
 }

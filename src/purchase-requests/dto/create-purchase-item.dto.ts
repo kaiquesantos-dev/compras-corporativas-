@@ -1,8 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class CreatePurchaseItemDto {
-  @ApiProperty({ description: 'Descrição do item.', example: 'Notebook Dell Inspiron 15' })
+  @ApiProperty({
+    description: 'Descrição do item.',
+    example: 'Notebook Dell Inspiron 15',
+  })
   @IsString()
   @IsNotEmpty()
   description: string;
@@ -17,7 +27,10 @@ export class CreatePurchaseItemDto {
   @IsNotEmpty()
   unit: string;
 
-  @ApiPropertyOptional({ description: 'Preço unitário estimado, se conhecido.', example: 4500.0 })
+  @ApiPropertyOptional({
+    description: 'Preço unitário estimado, se conhecido.',
+    example: 4500.0,
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)

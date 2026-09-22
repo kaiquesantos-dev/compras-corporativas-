@@ -16,7 +16,9 @@ import { JwtStrategy } from './jwt.strategy';
         // JWT_EXPIRES_IN is an env string (e.g. "1d"); @nestjs/jwt's signOptions.expiresIn
         // is typed against the `ms` package's branded string literal type, which a plain
         // `string` from ConfigService can never satisfy structurally.
-        signOptions: { expiresIn: config.getOrThrow<string>('JWT_EXPIRES_IN') as any },
+        signOptions: {
+          expiresIn: config.getOrThrow<string>('JWT_EXPIRES_IN') as any,
+        },
       }),
     }),
   ],

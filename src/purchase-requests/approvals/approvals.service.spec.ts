@@ -24,16 +24,29 @@ describe('ApprovalsService', () => {
 
   describe('decide', () => {
     it('throws ConflictException when the request is not PENDING_APPROVAL', async () => {
-      purchaseRequestsService.findOne.mockResolvedValue({ id: 1, status: 'IN_QUOTATION' });
+      purchaseRequestsService.findOne.mockResolvedValue({
+        id: 1,
+        status: 'IN_QUOTATION',
+      });
 
       await expect(
-        service.decide(1, { decision: 'APPROVED' } as any, { id: 1, role: 'APPROVER' } as any),
+        service.decide(
+          1,
+          { decision: 'APPROVED' } as any,
+          { id: 1, role: 'APPROVER' } as any,
+        ),
       ).rejects.toThrow(ConflictException);
     });
 
     it('approves the request, recording the approval and updating status', async () => {
-      purchaseRequestsService.findOne.mockResolvedValue({ id: 1, status: 'PENDING_APPROVAL' });
-      prisma.purchaseRequest.update.mockResolvedValue({ id: 1, status: 'APPROVED' });
+      purchaseRequestsService.findOne.mockResolvedValue({
+        id: 1,
+        status: 'PENDING_APPROVAL',
+      });
+      prisma.purchaseRequest.update.mockResolvedValue({
+        id: 1,
+        status: 'APPROVED',
+      });
 
       const result = await service.decide(
         1,
@@ -42,7 +55,12 @@ describe('ApprovalsService', () => {
       );
 
       expect(prisma.approval.create).toHaveBeenCalledWith({
-        data: { purchaseRequestId: 1, approverId: 7, decision: 'APPROVED', comment: 'Ok' },
+        data: {
+          purchaseRequestId: 1,
+          approverId: 7,
+          decision: 'APPROVED',
+          comment: 'Ok',
+        },
       });
       expect(prisma.purchaseRequest.update).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -52,10 +70,20 @@ describe('ApprovalsService', () => {
     });
 
     it('rejects the request when decision is REJECTED', async () => {
-      purchaseRequestsService.findOne.mockResolvedValue({ id: 1, status: 'PENDING_APPROVAL' });
-      prisma.purchaseRequest.update.mockResolvedValue({ id: 1, status: 'REJECTED' });
+      purchaseRequestsService.findOne.mockResolvedValue({
+        id: 1,
+        status: 'PENDING_APPROVAL',
+      });
+      prisma.purchaseRequest.update.mockResolvedValue({
+        id: 1,
+        status: 'REJECTED',
+      });
 
-      await service.decide(1, { decision: 'REJECTED' } as any, { id: 7, role: 'APPROVER' } as any);
+      await service.decide(
+        1,
+        { decision: 'REJECTED' } as any,
+        { id: 7, role: 'APPROVER' } as any,
+      );
 
       expect(prisma.purchaseRequest.update).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -69,9 +97,9 @@ describe('ApprovalsService', () => {
       purchaseRequestsService.findOne.mockResolvedValue({ id: 1 });
       prisma.approval.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne(1, { id: 1, role: 'APPROVER' } as any)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.findOne(1, { id: 1, role: 'APPROVER' } as any),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

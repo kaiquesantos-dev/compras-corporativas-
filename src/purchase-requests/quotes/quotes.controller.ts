@@ -14,7 +14,14 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiResponse,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
@@ -44,8 +51,14 @@ export class QuotesController {
       'Registra a cotação de um fornecedor para a solicitação. Move SUBMITTED -> IN_QUOTATION automaticamente na primeira cotação registrada.',
   })
   @ApiResponse({ status: 201, description: 'Cotação registrada.' })
-  @ApiResponse({ status: 404, description: 'Solicitação ou fornecedor não encontrado.' })
-  @ApiResponse({ status: 409, description: 'Solicitação não está em um estado que aceite novas cotações.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Solicitação ou fornecedor não encontrado.',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Solicitação não está em um estado que aceite novas cotações.',
+  })
   create(
     @Param('purchaseRequestId', ParseIntPipe) purchaseRequestId: number,
     @Body() dto: CreateQuoteDto,
@@ -74,11 +87,18 @@ export class QuotesController {
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Anexar proposta da cotação (upload)',
-    description: 'Aceita PDF, PNG ou JPEG, até 5MB. O arquivo é armazenado diretamente no banco.',
+    description:
+      'Aceita PDF, PNG ou JPEG, até 5MB. O arquivo é armazenado diretamente no banco.',
   })
   @ApiResponse({ status: 201, description: 'Proposta anexada.' })
-  @ApiResponse({ status: 400, description: 'Arquivo ausente, tipo não permitido ou maior que 5MB.' })
-  @ApiResponse({ status: 409, description: 'Solicitação não está em um estado que aceite anexos.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Arquivo ausente, tipo não permitido ou maior que 5MB.',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Solicitação não está em um estado que aceite anexos.',
+  })
   uploadProposal(
     @Param('purchaseRequestId', ParseIntPipe) purchaseRequestId: number,
     @Param('quoteId', ParseIntPipe) quoteId: number,
@@ -91,24 +111,36 @@ export class QuotesController {
     file: Express.Multer.File,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.quotesService.uploadProposal(purchaseRequestId, quoteId, file, user);
+    return this.quotesService.uploadProposal(
+      purchaseRequestId,
+      quoteId,
+      file,
+      user,
+    );
   }
 
   @Get(':quoteId/proposal')
   @ApiOperation({ summary: 'Baixar proposta da cotação' })
-  @ApiResponse({ status: 404, description: 'Cotação ou arquivo de proposta não encontrado.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Cotação ou arquivo de proposta não encontrado.',
+  })
   async downloadProposal(
     @Param('purchaseRequestId', ParseIntPipe) purchaseRequestId: number,
     @Param('quoteId', ParseIntPipe) quoteId: number,
     @CurrentUser() user: AuthenticatedUser,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { buffer, filename, mimeType } = await this.quotesService.downloadProposal(
-      purchaseRequestId,
-      quoteId,
-      user,
-    );
-    res.set({ 'Content-Type': mimeType, 'Content-Disposition': `attachment; filename="${filename}"` });
+    const { buffer, filename, mimeType } =
+      await this.quotesService.downloadProposal(
+        purchaseRequestId,
+        quoteId,
+        user,
+      );
+    res.set({
+      'Content-Type': mimeType,
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
     return new StreamableFile(buffer);
   }
 
@@ -121,7 +153,10 @@ export class QuotesController {
     description:
       'Marca a cotação como SELECTED, descarta automaticamente as demais cotações da mesma solicitação, e move a solicitação para PENDING_APPROVAL.',
   })
-  @ApiResponse({ status: 409, description: 'Solicitação não está em IN_QUOTATION.' })
+  @ApiResponse({
+    status: 409,
+    description: 'Solicitação não está em IN_QUOTATION.',
+  })
   select(
     @Param('purchaseRequestId', ParseIntPipe) purchaseRequestId: number,
     @Param('quoteId', ParseIntPipe) quoteId: number,

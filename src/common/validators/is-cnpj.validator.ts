@@ -19,7 +19,10 @@ export function isValidCnpj(rawValue: string): boolean {
   const digits = cnpj.split('').map(Number);
 
   const calcCheckDigit = (base: number[], weights: number[]): number => {
-    const sum = base.reduce((acc, digit, index) => acc + digit * weights[index], 0);
+    const sum = base.reduce(
+      (acc, digit, index) => acc + digit * weights[index],
+      0,
+    );
     const remainder = sum % 11;
     return remainder < 2 ? 0 : 11 - remainder;
   };

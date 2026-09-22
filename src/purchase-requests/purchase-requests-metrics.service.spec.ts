@@ -22,7 +22,10 @@ describe('PurchaseRequestsMetricsService', () => {
         { selectedQuote: { totalValue: 500 } },
       ])
       .mockResolvedValueOnce([
-        { submittedAt: new Date('2026-01-01T00:00:00Z'), decidedAt: new Date('2026-01-02T00:00:00Z') },
+        {
+          submittedAt: new Date('2026-01-01T00:00:00Z'),
+          decidedAt: new Date('2026-01-02T00:00:00Z'),
+        },
       ]);
 
     const result = await service.getMetrics();
@@ -34,7 +37,9 @@ describe('PurchaseRequestsMetricsService', () => {
 
   it('returns null averageApprovalTimeHours when no request has been decided yet', async () => {
     prisma.purchaseRequest.groupBy.mockResolvedValue([]);
-    prisma.purchaseRequest.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    prisma.purchaseRequest.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
 
     const result = await service.getMetrics();
 

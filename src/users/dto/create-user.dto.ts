@@ -1,9 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsInt, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 import { Role } from '../../generated/prisma/client';
 
 export class CreateUserDto {
-  @ApiProperty({ description: 'Nome completo do usuário.', example: 'Maria Silva' })
+  @ApiProperty({
+    description: 'Nome completo do usuário.',
+    example: 'Maria Silva',
+  })
   @IsString()
   @MinLength(2)
   name: string;
@@ -15,12 +25,19 @@ export class CreateUserDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty({ description: 'Senha inicial (mínimo 6 caracteres).', example: 'senha123' })
+  @ApiProperty({
+    description: 'Senha inicial (mínimo 6 caracteres).',
+    example: 'senha123',
+  })
   @IsString()
   @MinLength(6)
   password: string;
 
-  @ApiProperty({ description: 'Papel do usuário no sistema.', enum: Role, example: 'REQUESTER' })
+  @ApiProperty({
+    description: 'Papel do usuário no sistema.',
+    enum: Role,
+    example: 'REQUESTER',
+  })
   @IsEnum(Role)
   role: Role;
 

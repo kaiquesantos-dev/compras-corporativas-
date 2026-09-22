@@ -32,7 +32,9 @@ describe('DepartmentsService', () => {
 
   it('throws NotFoundException on update when missing', async () => {
     prisma.department.findUnique.mockResolvedValue(null);
-    await expect(service.update(999, { name: 'X' })).rejects.toThrow(NotFoundException);
+    await expect(service.update(999, { name: 'X' })).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('throws NotFoundException on remove when missing', async () => {

@@ -13,30 +13,48 @@ describe('PurchaseRequestStatusService', () => {
   });
 
   it('allows SUBMITTED -> IN_QUOTATION', () => {
-    expect(() => service.assertTransition('SUBMITTED', 'IN_QUOTATION')).not.toThrow();
+    expect(() =>
+      service.assertTransition('SUBMITTED', 'IN_QUOTATION'),
+    ).not.toThrow();
   });
 
   it('allows IN_QUOTATION -> PENDING_APPROVAL', () => {
-    expect(() => service.assertTransition('IN_QUOTATION', 'PENDING_APPROVAL')).not.toThrow();
+    expect(() =>
+      service.assertTransition('IN_QUOTATION', 'PENDING_APPROVAL'),
+    ).not.toThrow();
   });
 
   it('allows PENDING_APPROVAL -> APPROVED and -> REJECTED', () => {
-    expect(() => service.assertTransition('PENDING_APPROVAL', 'APPROVED')).not.toThrow();
-    expect(() => service.assertTransition('PENDING_APPROVAL', 'REJECTED')).not.toThrow();
+    expect(() =>
+      service.assertTransition('PENDING_APPROVAL', 'APPROVED'),
+    ).not.toThrow();
+    expect(() =>
+      service.assertTransition('PENDING_APPROVAL', 'REJECTED'),
+    ).not.toThrow();
   });
 
   it('allows APPROVED -> COMPLETED', () => {
-    expect(() => service.assertTransition('APPROVED', 'COMPLETED')).not.toThrow();
+    expect(() =>
+      service.assertTransition('APPROVED', 'COMPLETED'),
+    ).not.toThrow();
   });
 
   it('rejects skipping states, e.g. DRAFT -> APPROVED', () => {
-    expect(() => service.assertTransition('DRAFT', 'APPROVED')).toThrow(ConflictException);
+    expect(() => service.assertTransition('DRAFT', 'APPROVED')).toThrow(
+      ConflictException,
+    );
   });
 
   it('rejects any transition out of a terminal state', () => {
-    expect(() => service.assertTransition('REJECTED', 'APPROVED')).toThrow(ConflictException);
-    expect(() => service.assertTransition('COMPLETED', 'CANCELLED')).toThrow(ConflictException);
-    expect(() => service.assertTransition('CANCELLED', 'DRAFT')).toThrow(ConflictException);
+    expect(() => service.assertTransition('REJECTED', 'APPROVED')).toThrow(
+      ConflictException,
+    );
+    expect(() => service.assertTransition('COMPLETED', 'CANCELLED')).toThrow(
+      ConflictException,
+    );
+    expect(() => service.assertTransition('CANCELLED', 'DRAFT')).toThrow(
+      ConflictException,
+    );
   });
 
   it('records a history row via transitionAndRecord', async () => {
@@ -58,9 +76,9 @@ describe('PurchaseRequestStatusService', () => {
   it('does not write history when the transition is illegal', async () => {
     const tx = { purchaseRequestStatusHistory: { create: jest.fn() } };
 
-    await expect(service.transitionAndRecord(tx as any, 1, 'DRAFT', 'APPROVED', 42)).rejects.toThrow(
-      ConflictException,
-    );
+    await expect(
+      service.transitionAndRecord(tx as any, 1, 'DRAFT', 'APPROVED', 42),
+    ).rejects.toThrow(ConflictException);
     expect(tx.purchaseRequestStatusHistory.create).not.toHaveBeenCalled();
   });
 });

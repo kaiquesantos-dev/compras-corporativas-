@@ -48,7 +48,10 @@ export class UpdateSupplierDto {
   @IsString()
   state?: string;
 
-  @ApiPropertyOptional({ description: 'Ativa ou inativa o fornecedor.', example: false })
+  @ApiPropertyOptional({
+    description: 'Ativa ou inativa o fornecedor.',
+    example: false,
+  })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

@@ -16,7 +16,9 @@ describe('Approvals (e2e) and full lifecycle', () => {
 
   beforeAll(async () => {
     cnpjLookupService = { lookup: jest.fn() };
-    const moduleFixture: TestingModule = await Test.createTestingModule({ imports: [AppModule] })
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
       .overrideProvider(CnpjLookupService)
       .useValue(cnpjLookupService)
       .compile();
@@ -51,7 +53,11 @@ describe('Approvals (e2e) and full lifecycle', () => {
     const created = await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${requester.token}`)
-      .send({ title: 'Pedido', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
       .expect(201);
     const purchaseRequestId = created.body.id;
 
@@ -73,7 +79,9 @@ describe('Approvals (e2e) and full lifecycle', () => {
       .expect(201);
 
     await apiRequest(app)
-      .post(`/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/select`)
+      .post(
+        `/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/select`,
+      )
       .set('Authorization', `Bearer ${buyer.token}`)
       .expect(200);
 
@@ -94,7 +102,9 @@ describe('Approvals (e2e) and full lifecycle', () => {
       .get(`/purchase-requests/${purchaseRequestId}/history`)
       .set('Authorization', `Bearer ${requester.token}`)
       .expect(200);
-    const transitions = history.body.map((h: any) => `${h.fromStatus}->${h.toStatus}`);
+    const transitions = history.body.map(
+      (h: any) => `${h.fromStatus}->${h.toStatus}`,
+    );
     expect(transitions).toEqual([
       'DRAFT->SUBMITTED',
       'SUBMITTED->IN_QUOTATION',
@@ -111,7 +121,11 @@ describe('Approvals (e2e) and full lifecycle', () => {
     const created = await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${requester.token}`)
-      .send({ title: 'Pedido', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
       .expect(201);
 
     await apiRequest(app)
@@ -128,7 +142,11 @@ describe('Approvals (e2e) and full lifecycle', () => {
     const created = await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${requester.token}`)
-      .send({ title: 'Pedido', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
       .expect(201);
 
     await apiRequest(app)
@@ -146,7 +164,11 @@ describe('Approvals (e2e) and full lifecycle', () => {
     const created = await apiRequest(app)
       .post('/purchase-requests')
       .set('Authorization', `Bearer ${requester.token}`)
-      .send({ title: 'Pedido', justification: 'Justificativa qualquer aqui.', items: [validItem] })
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
       .expect(201);
     const purchaseRequestId = created.body.id;
 
@@ -168,7 +190,9 @@ describe('Approvals (e2e) and full lifecycle', () => {
       .expect(201);
 
     await apiRequest(app)
-      .post(`/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/select`)
+      .post(
+        `/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/select`,
+      )
       .set('Authorization', `Bearer ${buyer.token}`)
       .expect(200);
 

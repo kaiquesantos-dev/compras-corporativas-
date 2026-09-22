@@ -1,17 +1,26 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsString, MinLength, ValidateNested } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsString,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
 import { CreatePurchaseItemDto } from './create-purchase-item.dto';
 
 export class CreatePurchaseRequestDto {
-  @ApiProperty({ description: 'Título curto da solicitação.', example: 'Renovação de notebooks do time de TI' })
+  @ApiProperty({
+    description: 'Título curto da solicitação.',
+    example: 'Renovação de notebooks do time de TI',
+  })
   @IsString()
   @MinLength(3)
   title: string;
 
   @ApiProperty({
     description: 'Justificativa da necessidade de compra.',
-    example: 'Equipamentos atuais têm mais de 5 anos e apresentam falhas recorrentes.',
+    example:
+      'Equipamentos atuais têm mais de 5 anos e apresentam falhas recorrentes.',
   })
   @IsString()
   @MinLength(10)

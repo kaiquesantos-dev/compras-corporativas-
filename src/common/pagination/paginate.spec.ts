@@ -2,7 +2,11 @@ import { buildPaginationParams } from './paginate';
 
 describe('buildPaginationParams', () => {
   it('applies default page 1 and pageSize 20 when nothing is provided', () => {
-    const result = buildPaginationParams({}, ['createdAt', 'name'], 'createdAt');
+    const result = buildPaginationParams(
+      {},
+      ['createdAt', 'name'],
+      'createdAt',
+    );
     expect(result).toEqual({
       skip: 0,
       take: 20,
@@ -30,7 +34,11 @@ describe('buildPaginationParams', () => {
   });
 
   it('caps pageSize at 100 to avoid unbounded queries', () => {
-    const result = buildPaginationParams({ pageSize: 500 }, ['createdAt'], 'createdAt');
+    const result = buildPaginationParams(
+      { pageSize: 500 },
+      ['createdAt'],
+      'createdAt',
+    );
     expect(result.take).toBe(100);
   });
 });

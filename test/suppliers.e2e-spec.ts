@@ -75,10 +75,15 @@ describe('Suppliers (e2e)', () => {
     const response = await apiRequest(app)
       .post('/suppliers')
       .set('Authorization', `Bearer ${buyer.token}`)
-      .send({ document: '19131243000197', legalName: 'Fornecedor Informado Manualmente LTDA' })
+      .send({
+        document: '19131243000197',
+        legalName: 'Fornecedor Informado Manualmente LTDA',
+      })
       .expect(201);
 
-    expect(response.body.legalName).toBe('Fornecedor Informado Manualmente LTDA');
+    expect(response.body.legalName).toBe(
+      'Fornecedor Informado Manualmente LTDA',
+    );
   });
 
   it('rejects an invalid CNPJ format with 400', async () => {

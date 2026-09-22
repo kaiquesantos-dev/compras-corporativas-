@@ -40,7 +40,9 @@ describe('Auth (e2e)', () => {
   });
 
   it('rejects login with the wrong password with 401', async () => {
-    const department = await prisma.department.create({ data: { name: 'Depto X' } });
+    const department = await prisma.department.create({
+      data: { name: 'Depto X' },
+    });
     await prisma.user.create({
       data: {
         name: 'Teste',

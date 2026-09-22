@@ -10,7 +10,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -41,14 +47,23 @@ export class SuppliersController {
     description:
       'CNPJ em formato inválido, ou CNPJ não encontrado/serviço indisponível sem dados manuais de fallback.',
   })
-  @ApiResponse({ status: 403, description: 'Papel sem permissão para cadastrar fornecedores.' })
-  @ApiResponse({ status: 409, description: 'Já existe um fornecedor com esse CNPJ.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Papel sem permissão para cadastrar fornecedores.',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Já existe um fornecedor com esse CNPJ.',
+  })
   create(@Body() dto: CreateSupplierDto) {
     return this.suppliersService.create(dto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Listar fornecedores', description: 'Qualquer usuário autenticado.' })
+  @ApiOperation({
+    summary: 'Listar fornecedores',
+    description: 'Qualquer usuário autenticado.',
+  })
   findAll(@Query() query: SupplierQueryDto) {
     return this.suppliersService.findAll(query);
   }
@@ -64,7 +79,10 @@ export class SuppliersController {
   @UseGuards(RolesGuard)
   @Roles('BUYER', 'ADMIN')
   @ApiOperation({ summary: 'Atualizar fornecedor' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSupplierDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateSupplierDto,
+  ) {
     return this.suppliersService.update(id, dto);
   }
 
@@ -72,7 +90,10 @@ export class SuppliersController {
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Remover fornecedor' })
-  @ApiResponse({ status: 409, description: 'Fornecedor possui cotações vinculadas.' })
+  @ApiResponse({
+    status: 409,
+    description: 'Fornecedor possui cotações vinculadas.',
+  })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.suppliersService.remove(id);
   }

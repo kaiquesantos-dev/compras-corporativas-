@@ -43,7 +43,9 @@ export class CnpjLookupService {
   async lookup(rawCnpj: string): Promise<CnpjLookupResult | null> {
     const cnpj = onlyDigits(rawCnpj);
     const baseUrl = this.configService.getOrThrow<string>('CNPJ_API_BASE_URL');
-    const timeoutMs = this.configService.getOrThrow<number>('CNPJ_API_TIMEOUT_MS');
+    const timeoutMs = this.configService.getOrThrow<number>(
+      'CNPJ_API_TIMEOUT_MS',
+    );
 
     try {
       const response = await firstValueFrom(
@@ -53,7 +55,9 @@ export class CnpjLookupService {
       );
       const data = response.data;
       const street =
-        [data.logradouro, data.numero, data.complemento].filter(Boolean).join(', ') || null;
+        [data.logradouro, data.numero, data.complemento]
+          .filter(Boolean)
+          .join(', ') || null;
 
       return {
         legalName: data.razao_social,

@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { AuthenticatedUser } from '../../auth/types/authenticated-user.type';
 import { PurchaseRequestStatusService } from '../purchase-request-status.service';
@@ -13,8 +17,15 @@ export class ApprovalsService {
     private readonly purchaseRequestsService: PurchaseRequestsService,
   ) {}
 
-  async decide(purchaseRequestId: number, dto: DecideApprovalDto, user: AuthenticatedUser) {
-    const pr = await this.purchaseRequestsService.findOne(purchaseRequestId, user);
+  async decide(
+    purchaseRequestId: number,
+    dto: DecideApprovalDto,
+    user: AuthenticatedUser,
+  ) {
+    const pr = await this.purchaseRequestsService.findOne(
+      purchaseRequestId,
+      user,
+    );
 
     if (pr.status !== 'PENDING_APPROVAL') {
       throw new ConflictException(
@@ -50,9 +61,13 @@ export class ApprovalsService {
 
   async findOne(purchaseRequestId: number, user: AuthenticatedUser) {
     await this.purchaseRequestsService.findOne(purchaseRequestId, user);
-    const approval = await this.prisma.approval.findUnique({ where: { purchaseRequestId } });
+    const approval = await this.prisma.approval.findUnique({
+      where: { purchaseRequestId },
+    });
     if (!approval) {
-      throw new NotFoundException('Esta solicitação ainda não possui uma decisão de aprovação.');
+      throw new NotFoundException(
+        'Esta solicitação ainda não possui uma decisão de aprovação.',
+      );
     }
     return approval;
   }
