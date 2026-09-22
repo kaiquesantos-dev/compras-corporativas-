@@ -20,6 +20,7 @@ import { CreatePurchaseRequestDto } from './dto/create-purchase-request.dto';
 import { UpdatePurchaseRequestDto } from './dto/update-purchase-request.dto';
 import { PurchaseRequestQueryDto } from './dto/purchase-request-query.dto';
 import { PurchaseRequestsService } from './purchase-requests.service';
+import { PurchaseRequestsMetricsService } from './purchase-requests-metrics.service';
 
 @ApiTags('Solicitações de Compra')
 @ApiBearerAuth()
@@ -27,7 +28,10 @@ import { PurchaseRequestsService } from './purchase-requests.service';
 @UseGuards(JwtAuthGuard)
 @Controller('purchase-requests')
 export class PurchaseRequestsController {
-  constructor(private readonly service: PurchaseRequestsService) {}
+  constructor(
+    private readonly service: PurchaseRequestsService,
+    private readonly metricsService: PurchaseRequestsMetricsService,
+  ) {}
 
   @Post()
   @UseGuards(RolesGuard)
@@ -49,6 +53,21 @@ export class PurchaseRequestsController {
   })
   findAll(@Query() query: PurchaseRequestQueryDto, @CurrentUser() user: AuthenticatedUser) {
     return this.service.findAll(query, user);
+  }
+
+  // Must stay registered before `@Get(':id')` — Nest/Express match routes
+  // in declaration order, so a literal "metrics" route needs priority over
+  // the ":id" parameter route to avoid being swallowed by it.
+  @Get('metrics')
+  @UseGuards(RolesGuard)
+  @Roles('BUYER', 'APPROVER', 'ADMIN')
+  @ApiOperation({
+    summary: 'Indicadores de compras',
+    description:
+      'Contagem de solicitações por status, valor total aprovado e tempo médio de aprovação (em horas).',
+  })
+  metrics() {
+    return this.metricsService.getMetrics();
   }
 
   @Get(':id')
