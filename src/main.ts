@@ -1,16 +1,29 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import { json, urlencoded } from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
 import { AppModule } from './app.module';
 import { configureSwagger } from './swagger.config';
+
+// Tamanho máximo aceito para o corpo de uma requisição JSON/form comum
+// (não afeta o upload de proposta, que usa multipart/form-data e tem seu
+// próprio limite de 5MB, tratado à parte pelo multer). Sem este limite,
+// alguém poderia mandar um body de vários MB só de texto e derrubar a
+// aplicação por consumo de memória.
+const MAX_BODY_SIZE = '1mb';
 
 // Ponto de entrada da aplicação. ValidationPipe, filtro de exceções e
 // interceptor de log já são registrados via injeção de dependência dentro
 // do AppModule — aqui só ficam as preocupações que são, de fato, middleware
 // bruto do Express (Helmet, Compression) e a configuração do Swagger.
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // "bodyParser: false" desliga o parser padrão do Nest para que possamos
+  // registrar o nosso, abaixo, já com o limite de tamanho aplicado.
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  app.use(json({ limit: MAX_BODY_SIZE }));
+  app.use(urlencoded({ extended: true, limit: MAX_BODY_SIZE }));
+
   const configService = app.get(ConfigService);
 
   // Helmet adiciona cabeçalhos de segurança padrão. A Content-Security-Policy
@@ -35,6 +48,14 @@ async function bootstrap() {
   // autenticação aqui é via token JWT no header (não cookie de sessão), não
   // há risco de CSRF em liberar qualquer origem — não usamos "credentials".
   app.enableCors();
+
+  // Faz o Nest escutar os sinais de encerramento do sistema operacional
+  // (SIGTERM, enviado por "docker stop"; SIGINT, do Ctrl+C) e chamar os
+  // hooks de ciclo de vida de cada provider antes de matar o processo — é
+  // isso que faz o `onModuleDestroy` do PrismaService (que fecha a conexão
+  // com o Postgres) realmente ser executado, em vez do processo simplesmente
+  // morrer com a conexão ainda aberta.
+  app.enableShutdownHooks();
 
   configureSwagger(app);
 
