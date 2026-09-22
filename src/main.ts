@@ -29,6 +29,13 @@ async function bootstrap() {
   );
   app.use(compression());
 
+  // Libera chamadas vindas de outra origem (ex: o frontend React rodando em
+  // localhost:5173 durante o desenvolvimento). Sem isso, o navegador bloqueia
+  // toda requisição do frontend para esta API por política de CORS. Como a
+  // autenticação aqui é via token JWT no header (não cookie de sessão), não
+  // há risco de CSRF em liberar qualquer origem — não usamos "credentials".
+  app.enableCors();
+
   configureSwagger(app);
 
   const port = configService.getOrThrow<number>('PORT');
