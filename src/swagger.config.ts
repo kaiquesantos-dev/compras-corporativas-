@@ -20,12 +20,17 @@ export function configureSwagger(app: INestApplication): void {
 - **ADMIN**: gestão administrativa completa (usuários, departamentos) e acesso irrestrito.
 
 ## Fluxo de estados
-DRAFT → SUBMITTED → IN_QUOTATION → PENDING_APPROVAL → APPROVED → COMPLETED, com REJECTED e CANCELLED como estados terminais (nenhuma ação futura é permitida a partir deles).
-
-## Autenticação
-Toda rota exige o header \`X-API-KEY\`. A maioria das rotas também exige um token JWT (\`Authorization: Bearer <token>\`), obtido via \`POST /auth/login\`.`,
+DRAFT → SUBMITTED → IN_QUOTATION → PENDING_APPROVAL → APPROVED → COMPLETED, com REJECTED e CANCELLED como estados terminais (nenhuma ação futura é permitida a partir deles).`,
     )
-    .setVersion('1.0')
+    .setVersion('1.0.0')
+    .setContact(
+      'Suporte',
+      'https://github.com/kaiquesantos-dev/compras-corporativas-',
+      'suporte@compras.com',
+    )
+    .setLicense('MIT', 'https://opensource.org/licenses/MIT')
+    .addServer('http://localhost:3000', 'Desenvolvimento')
+    .addServer('http://localhost:5000', 'Produção')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'bearer',
