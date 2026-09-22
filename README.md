@@ -49,6 +49,7 @@ cp .env.example .env
 
 | Variável | Descrição |
 |---|---|
+| `NODE_ENV` | `development`, `production` ou `test`. Controla, entre outras coisas, o idioma da documentação Swagger (`/docs`). |
 | `DATABASE_URL` | String de conexão do PostgreSQL de desenvolvimento (porta `5434`). |
 | `JWT_SECRET` | Segredo usado para assinar/validar os tokens JWT. Nunca reutilize o valor de exemplo em produção. |
 | `JWT_EXPIRES_IN` | Tempo de expiração do token (ex: `1d`). |
