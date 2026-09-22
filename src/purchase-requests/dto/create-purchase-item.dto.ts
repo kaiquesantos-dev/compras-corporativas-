@@ -5,6 +5,8 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -18,16 +20,19 @@ export class CreatePurchaseItemDto {
   })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(200)
   description: string;
 
   @ApiProperty({ description: 'Quantidade solicitada.', example: 3 })
   @IsInt()
   @Min(1)
+  @Max(100000)
   quantity: number;
 
   @ApiProperty({ description: 'Unidade de medida.', example: 'unidade' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(30)
   unit: string;
 
   @ApiPropertyOptional({
@@ -37,5 +42,6 @@ export class CreatePurchaseItemDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(1000000000)
   estimatedUnitPrice?: number;
 }

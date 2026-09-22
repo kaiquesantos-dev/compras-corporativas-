@@ -5,6 +5,8 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -14,11 +16,13 @@ export class CreateQuoteDto {
     example: 1,
   })
   @IsInt()
+  @Min(1)
   supplierId: number;
 
   @ApiProperty({ description: 'Valor total da cotação.', example: 13500.0 })
   @IsNumber()
-  @Min(0)
+  @Min(0.01, { message: 'totalValue deve ser maior que zero.' })
+  @Max(1000000000)
   totalValue: number;
 
   @ApiPropertyOptional({
@@ -32,5 +36,6 @@ export class CreateQuoteDto {
   @ApiPropertyOptional({ example: 'Prazo de entrega de 15 dias úteis.' })
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   notes?: string;
 }

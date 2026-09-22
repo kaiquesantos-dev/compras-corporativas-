@@ -1,6 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 // Query params compartilhados por todo endpoint de listagem (GET /users,
 // GET /suppliers, GET /purchase-requests, etc.): página, tamanho da página
@@ -15,6 +23,7 @@ export class PaginationQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(1000000)
   page?: number;
 
   @ApiPropertyOptional({
@@ -25,6 +34,7 @@ export class PaginationQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(100, { message: 'pageSize não pode ser maior que 100.' })
   pageSize?: number;
 
   @ApiPropertyOptional({
@@ -33,6 +43,7 @@ export class PaginationQueryDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   sortBy?: string;
 
   @ApiPropertyOptional({

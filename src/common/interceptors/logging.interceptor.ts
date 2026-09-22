@@ -25,10 +25,7 @@ interface RequestWithUser {
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
 
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Observable<unknown> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const startedAt = Date.now();
     const request = context.switchToHttp().getRequest<RequestWithUser>();
     const response = context

@@ -40,7 +40,8 @@ export class UsersController {
   @Post()
   @ApiOperation({
     summary: 'Criar usuário',
-    description: '**Papéis permitidos:** ADMIN\n\nCria um novo usuário no sistema.',
+    description:
+      '**Papéis permitidos:** ADMIN\n\nCria um novo usuário no sistema.',
   })
   @ApiResponse({ status: 201, description: 'Usuário criado com sucesso.' })
   @ApiResponse({

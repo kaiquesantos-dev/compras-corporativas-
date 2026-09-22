@@ -5,6 +5,8 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
 import { Role } from '../../generated/prisma/client';
@@ -16,11 +18,13 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   @MinLength(2)
+  @MaxLength(100)
   name?: string;
 
   @ApiPropertyOptional({ example: 'maria.silva@empresa.com' })
   @IsOptional()
   @IsEmail()
+  @MaxLength(255)
   email?: string;
 
   @ApiPropertyOptional({
@@ -30,6 +34,7 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   @MinLength(6)
+  @MaxLength(72)
   password?: string;
 
   @ApiPropertyOptional({ enum: Role, example: 'BUYER' })
@@ -40,5 +45,6 @@ export class UpdateUserDto {
   @ApiPropertyOptional({ example: 2 })
   @IsOptional()
   @IsInt()
+  @Min(1)
   departmentId?: number;
 }

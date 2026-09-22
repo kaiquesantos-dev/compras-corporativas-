@@ -52,8 +52,7 @@ export class CnpjLookupService {
    */
   async lookup(rawCnpj: string): Promise<CnpjLookupResult | null> {
     const cnpj = onlyDigits(rawCnpj);
-    const baseUrl =
-      this.configService.getOrThrow<string>('CNPJ_API_BASE_URL');
+    const baseUrl = this.configService.getOrThrow<string>('CNPJ_API_BASE_URL');
     const timeoutMs = this.configService.getOrThrow<number>(
       'CNPJ_API_TIMEOUT_MS',
     );

@@ -5,6 +5,8 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
 import { Role } from '../../generated/prisma/client';
@@ -19,6 +21,7 @@ export class CreateUserDto {
   })
   @IsString()
   @MinLength(2)
+  @MaxLength(100)
   name: string;
 
   @ApiProperty({
@@ -26,6 +29,7 @@ export class CreateUserDto {
     example: 'maria.silva@empresa.com',
   })
   @IsEmail()
+  @MaxLength(255)
   email: string;
 
   @ApiProperty({
@@ -34,6 +38,8 @@ export class CreateUserDto {
   })
   @IsString()
   @MinLength(6)
+  // bcrypt ignora silenciosamente qualquer byte além do 72º.
+  @MaxLength(72)
   password: string;
 
   @ApiProperty({
@@ -51,5 +57,6 @@ export class CreateUserDto {
   })
   @IsOptional()
   @IsInt()
+  @Min(1)
   departmentId?: number;
 }

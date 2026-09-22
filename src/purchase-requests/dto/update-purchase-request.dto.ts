@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 // Edição só é permitida em DRAFT, então este DTO cobre só o que faz
 // sentido mudar antes de submeter: título e justificativa. Os itens não
@@ -11,11 +11,13 @@ export class UpdatePurchaseRequestDto {
   @IsOptional()
   @IsString()
   @MinLength(3)
+  @MaxLength(200)
   title?: string;
 
   @ApiPropertyOptional({ example: 'Justificativa revisada com mais detalhes.' })
   @IsOptional()
   @IsString()
   @MinLength(10)
+  @MaxLength(2000)
   justification?: string;
 }

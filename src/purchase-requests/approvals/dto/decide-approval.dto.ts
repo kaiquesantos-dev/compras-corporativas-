@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApprovalDecision } from '../../../generated/prisma/client';
 
 export class DecideApprovalDto {
@@ -17,5 +17,6 @@ export class DecideApprovalDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   comment?: string;
 }

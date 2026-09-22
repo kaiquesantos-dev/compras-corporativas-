@@ -94,7 +94,8 @@ export class PurchaseRequestsController {
   @Get(':id')
   @ApiOperation({
     summary: 'Buscar solicitação por ID',
-    description: '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN\n\n*(REQUESTER vê apenas as próprias)*',
+    description:
+      '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN\n\n*(REQUESTER vê apenas as próprias)*',
   })
   @ApiResponse({
     status: 403,
@@ -113,7 +114,8 @@ export class PurchaseRequestsController {
   @Roles('REQUESTER')
   @ApiOperation({
     summary: 'Editar solicitação',
-    description: '**Papéis permitidos:** REQUESTER\n\nSomente o dono, e somente em DRAFT.',
+    description:
+      '**Papéis permitidos:** REQUESTER\n\nSomente o dono, e somente em DRAFT.',
   })
   @ApiResponse({
     status: 409,
@@ -149,7 +151,8 @@ export class PurchaseRequestsController {
   @Roles('REQUESTER', 'ADMIN')
   @ApiOperation({
     summary: 'Cancelar solicitação',
-    description: '**Papéis permitidos:** REQUESTER, ADMIN\n\nPermitido a partir de DRAFT, SUBMITTED ou IN_QUOTATION.',
+    description:
+      '**Papéis permitidos:** REQUESTER, ADMIN\n\nPermitido a partir de DRAFT, SUBMITTED ou IN_QUOTATION.',
   })
   @ApiResponse({
     status: 409,

@@ -43,7 +43,10 @@ DRAFT → SUBMITTED → IN_QUOTATION → PENDING_APPROVAL → APPROVED → COMPL
       isProd ? 'support@example.com' : 'suporte@compras.com',
     )
     .setLicense('MIT', 'https://opensource.org/licenses/MIT')
-    .addServer('http://localhost:3000', isProd ? 'Production' : 'Desenvolvimento')
+    .addServer(
+      'http://localhost:3000',
+      isProd ? 'Production' : 'Desenvolvimento',
+    )
     .addServer('https://api.compras.com', isProd ? 'Production' : 'Produção')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
