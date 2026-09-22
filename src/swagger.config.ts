@@ -8,10 +8,22 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 // de autenticação que o usuário pode informar no botão "Authorize" da UI:
 // o token JWT (bearer) e a chave de API (x-api-key).
 export function configureSwagger(app: INestApplication): void {
-  const config = new DocumentBuilder()
-    .setTitle('API de Compras Corporativas')
-    .setDescription(
-      `API para gestão de compras corporativas, cobrindo o fluxo completo solicitação → cotação → aprovação.
+  // Descrições e exemplos variam por ambiente: dev = inglês + exemplos genéricos,
+  // prod = português + exemplos reais (sem credenciais verdadeiras).
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  const descriptionDev = `Corporate Purchases API — complete workflow from purchase request to quotation to approval.
+
+## Roles
+- **REQUESTER**: creates and submits own purchase requests.
+- **BUYER**: registers suppliers, records quotations, attaches proposals, selects winning quote.
+- **APPROVER**: approves or rejects pending requests.
+- **ADMIN**: full administrative access (users, departments) and unrestricted access.
+
+## State flow
+DRAFT → SUBMITTED → IN_QUOTATION → PENDING_APPROVAL → APPROVED → COMPLETED, with REJECTED and CANCELLED as terminal states (no future actions allowed).`;
+
+  const descriptionProd = `API para gestão de compras corporativas, cobrindo o fluxo completo solicitação → cotação → aprovação.
 
 ## Papéis
 - **REQUESTER**: cria e submete solicitações de compra próprias.
@@ -20,17 +32,20 @@ export function configureSwagger(app: INestApplication): void {
 - **ADMIN**: gestão administrativa completa (usuários, departamentos) e acesso irrestrito.
 
 ## Fluxo de estados
-DRAFT → SUBMITTED → IN_QUOTATION → PENDING_APPROVAL → APPROVED → COMPLETED, com REJECTED e CANCELLED como estados terminais (nenhuma ação futura é permitida a partir deles).`,
-    )
+DRAFT → SUBMITTED → IN_QUOTATION → PENDING_APPROVAL → APPROVED → COMPLETED, com REJECTED e CANCELLED como estados terminais (nenhuma ação futura é permitida a partir deles).`;
+
+  const config = new DocumentBuilder()
+    .setTitle('API de Compras Corporativas')
+    .setDescription(isDev ? descriptionDev : descriptionProd)
     .setVersion('1.0.0')
     .setContact(
-      'Suporte',
+      isDev ? 'Support' : 'Suporte',
       'https://github.com/kaiquesantos-dev/compras-corporativas-',
-      'suporte@compras.com',
+      isDev ? 'support@example.com' : 'suporte@compras.com',
     )
     .setLicense('MIT', 'https://opensource.org/licenses/MIT')
-    .addServer('http://localhost:3000', 'Desenvolvimento')
-    .addServer('http://localhost:5000', 'Produção')
+    .addServer('http://localhost:3000', isDev ? 'Development' : 'Desenvolvimento')
+    .addServer('https://api.compras.com', isDev ? 'Production' : 'Produção')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'bearer',
