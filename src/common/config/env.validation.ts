@@ -1,11 +1,19 @@
 import { plainToInstance } from 'class-transformer';
 import {
+  IsEnum,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsUrl,
   validateSync,
 } from 'class-validator';
+
+enum NodeEnv {
+  Development = 'development',
+  Production = 'production',
+  Test = 'test',
+}
 
 // Lista de todas as variáveis de ambiente que a aplicação precisa para
 // funcionar, com os tipos e validações esperados. Isso é o "contrato" do
@@ -13,6 +21,16 @@ import {
 // nem chega a subir (falha rápido, com uma mensagem clara, em vez de dar
 // erro estranho depois em algum lugar aleatório do código).
 export class EnvironmentVariables {
+  // Opcional porque nunca é exigido por código nenhum — mas se vier
+  // preenchido (ex: "produciton", com erro de digitação), é melhor falhar
+  // aqui, na subida da aplicação, do que silenciosamente cair no branch
+  // errado do swagger.config.ts (que decide idioma da doc com base nele).
+  @IsOptional()
+  @IsEnum(NodeEnv, {
+    message: 'NODE_ENV deve ser "development", "production" ou "test".',
+  })
+  NODE_ENV?: string;
+
   @IsString()
   @IsNotEmpty()
   DATABASE_URL: string;
