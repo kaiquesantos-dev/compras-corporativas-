@@ -6,3 +6,7 @@ coverage/
 *.env.local
 docs/superpowers/
 src/generated/
+*.tsbuildinfo
+/prisma.config.js
+/prisma.config.d.ts
+/prisma.config.js.map
