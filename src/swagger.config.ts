@@ -8,22 +8,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 // de autenticação que o usuário pode informar no botão "Authorize" da UI:
 // o token JWT (bearer) e a chave de API (x-api-key).
 export function configureSwagger(app: INestApplication): void {
-  // Descrições e exemplos variam por ambiente: dev = inglês + exemplos genéricos,
-  // prod = português + exemplos reais (sem credenciais verdadeiras).
-  const isDev = process.env.NODE_ENV !== 'production';
+  // Descrições e exemplos variam por ambiente: dev = português, prod = inglês
+  const isProd = process.env.NODE_ENV === 'production';
 
-  const descriptionDev = `Corporate Purchases API — complete workflow from purchase request to quotation to approval.
-
-## Roles
-- **REQUESTER**: creates and submits own purchase requests.
-- **BUYER**: registers suppliers, records quotations, attaches proposals, selects winning quote.
-- **APPROVER**: approves or rejects pending requests.
-- **ADMIN**: full administrative access (users, departments) and unrestricted access.
-
-## State flow
-DRAFT → SUBMITTED → IN_QUOTATION → PENDING_APPROVAL → APPROVED → COMPLETED, with REJECTED and CANCELLED as terminal states (no future actions allowed).`;
-
-  const descriptionProd = `API para gestão de compras corporativas, cobrindo o fluxo completo solicitação → cotação → aprovação.
+  const descriptionDev = `API para gestão de compras corporativas, cobrindo o fluxo completo solicitação → cotação → aprovação.
 
 ## Papéis
 - **REQUESTER**: cria e submete solicitações de compra próprias.
@@ -34,18 +22,29 @@ DRAFT → SUBMITTED → IN_QUOTATION → PENDING_APPROVAL → APPROVED → COMPL
 ## Fluxo de estados
 DRAFT → SUBMITTED → IN_QUOTATION → PENDING_APPROVAL → APPROVED → COMPLETED, com REJECTED e CANCELLED como estados terminais (nenhuma ação futura é permitida a partir deles).`;
 
+  const descriptionProd = `Corporate Purchases API — complete workflow from purchase request to quotation to approval.
+
+## Roles
+- **REQUESTER**: creates and submits own purchase requests.
+- **BUYER**: registers suppliers, records quotations, attaches proposals, selects winning quote.
+- **APPROVER**: approves or rejects pending requests.
+- **ADMIN**: full administrative access (users, departments) and unrestricted access.
+
+## State flow
+DRAFT → SUBMITTED → IN_QUOTATION → PENDING_APPROVAL → APPROVED → COMPLETED, with REJECTED and CANCELLED as terminal states (no future actions allowed).`;
+
   const config = new DocumentBuilder()
     .setTitle('API de Compras Corporativas')
-    .setDescription(isDev ? descriptionDev : descriptionProd)
+    .setDescription(isProd ? descriptionProd : descriptionDev)
     .setVersion('1.0.0')
     .setContact(
-      isDev ? 'Support' : 'Suporte',
+      isProd ? 'Support' : 'Suporte',
       'https://github.com/kaiquesantos-dev/compras-corporativas-',
-      isDev ? 'support@example.com' : 'suporte@compras.com',
+      isProd ? 'support@example.com' : 'suporte@compras.com',
     )
     .setLicense('MIT', 'https://opensource.org/licenses/MIT')
-    .addServer('http://localhost:3000', isDev ? 'Development' : 'Desenvolvimento')
-    .addServer('https://api.compras.com', isDev ? 'Production' : 'Produção')
+    .addServer('http://localhost:3000', isProd ? 'Production' : 'Desenvolvimento')
+    .addServer('https://api.compras.com', isProd ? 'Production' : 'Produção')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'bearer',
