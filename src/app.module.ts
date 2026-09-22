@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { DepartmentsModule } from './departments/departments.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { PurchaseRequestsModule } from './purchase-requests/purchase-requests.module';
+import { QuotesModule } from './purchase-requests/quotes/quotes.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -27,6 +28,7 @@ import { AppService } from './app.service';
     DepartmentsModule,
     SuppliersModule,
     PurchaseRequestsModule,
+    QuotesModule,
   ],
   controllers: [AppController],
   providers: [
