@@ -3,6 +3,9 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 
+// Responsável por autenticar o usuário (login) e gerar o token JWT que ele
+// vai usar nas próximas requisições. Não trata autorização (o que o usuário
+// PODE fazer) — isso é papel dos Guards (RolesGuard).
 @Injectable()
 export class AuthService {
   constructor(
@@ -10,6 +13,13 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
+  // Fluxo do login:
+  // 1. busca o usuário pelo email;
+  // 2. compara a senha enviada com o hash salvo no banco (bcrypt);
+  // 3. se tudo bater, gera um token JWT com os dados mínimos do usuário.
+  // Em ambos os casos de falha (email não existe ou senha errada) devolvemos
+  // a MESMA mensagem genérica, para não dar dica a quem está tentando
+  // adivinhar se um email está cadastrado ou não.
   async login(
     email: string,
     password: string,
@@ -24,6 +34,9 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
+    // O payload do token guarda só o essencial (id, email, papel) — nunca a
+    // senha. É esse payload que o JwtStrategy vai decodificar mais tarde
+    // para identificar quem está fazendo cada requisição.
     const access_token = await this.jwtService.signAsync({
       sub: user.id,
       email: user.email,

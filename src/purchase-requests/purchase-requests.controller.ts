@@ -28,6 +28,9 @@ import { PurchaseRequestQueryDto } from './dto/purchase-request-query.dto';
 import { PurchaseRequestsService } from './purchase-requests.service';
 import { PurchaseRequestsMetricsService } from './purchase-requests-metrics.service';
 
+// Controller "fininho" de propósito: cada método só valida os parâmetros
+// da URL (@Param, @Query) e repassa pro service — nenhuma regra de negócio
+// mora aqui, só roteamento HTTP e documentação Swagger.
 @ApiTags('Solicitações de Compra')
 @ApiBearerAuth()
 @ApiSecurity('x-api-key')
@@ -45,7 +48,7 @@ export class PurchaseRequestsController {
   @ApiOperation({
     summary: 'Criar solicitação de compra',
     description:
-      'Cria uma solicitação em DRAFT com seus itens. Restrito a REQUESTER.',
+      '**Papéis permitidos:** REQUESTER\n\nCria uma solicitação em DRAFT com seus itens.',
   })
   @ApiResponse({ status: 201, description: 'Solicitação criada em DRAFT.' })
   @ApiResponse({
@@ -63,7 +66,7 @@ export class PurchaseRequestsController {
   @ApiOperation({
     summary: 'Listar solicitações de compra',
     description:
-      'REQUESTER vê apenas as próprias; BUYER/APPROVER/ADMIN veem todas.',
+      '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN\n\n*(REQUESTER vê apenas as próprias; BUYER/APPROVER/ADMIN veem todas)*',
   })
   findAll(
     @Query() query: PurchaseRequestQueryDto,
@@ -72,23 +75,27 @@ export class PurchaseRequestsController {
     return this.service.findAll(query, user);
   }
 
-  // Must stay registered before `@Get(':id')` — Nest/Express match routes
-  // in declaration order, so a literal "metrics" route needs priority over
-  // the ":id" parameter route to avoid being swallowed by it.
+  // Atenção à ordem: esta rota precisa vir ANTES de @Get(':id') aqui embaixo.
+  // O Nest registra as rotas na ordem em que aparecem no código, então se
+  // ":id" viesse primeiro, uma chamada para "/purchase-requests/metrics"
+  // seria capturada por ela, tratando "metrics" como se fosse um ID.
   @Get('metrics')
   @UseGuards(RolesGuard)
   @Roles('BUYER', 'APPROVER', 'ADMIN')
   @ApiOperation({
     summary: 'Indicadores de compras',
     description:
-      'Contagem de solicitações por status, valor total aprovado e tempo médio de aprovação (em horas).',
+      '**Papéis permitidos:** BUYER, APPROVER, ADMIN\n\nContagem de solicitações por status, valor total aprovado e tempo médio de aprovação (em horas).',
   })
   metrics() {
     return this.metricsService.getMetrics();
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Buscar solicitação por ID' })
+  @ApiOperation({
+    summary: 'Buscar solicitação por ID',
+    description: '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN\n\n*(REQUESTER vê apenas as próprias)*',
+  })
   @ApiResponse({
     status: 403,
     description: 'REQUESTER tentando acessar solicitação de outro usuário.',
@@ -106,7 +113,7 @@ export class PurchaseRequestsController {
   @Roles('REQUESTER')
   @ApiOperation({
     summary: 'Editar solicitação',
-    description: 'Somente o dono, e somente em DRAFT.',
+    description: '**Papéis permitidos:** REQUESTER\n\nSomente o dono, e somente em DRAFT.',
   })
   @ApiResponse({
     status: 409,
@@ -126,7 +133,7 @@ export class PurchaseRequestsController {
   @Roles('REQUESTER')
   @ApiOperation({
     summary: 'Submeter solicitação para cotação',
-    description: 'DRAFT -> SUBMITTED.',
+    description: '**Papéis permitidos:** REQUESTER\n\nDRAFT → SUBMITTED',
   })
   @ApiResponse({ status: 409, description: 'Solicitação não está em DRAFT.' })
   submit(
@@ -142,7 +149,7 @@ export class PurchaseRequestsController {
   @Roles('REQUESTER', 'ADMIN')
   @ApiOperation({
     summary: 'Cancelar solicitação',
-    description: 'Permitido a partir de DRAFT, SUBMITTED ou IN_QUOTATION.',
+    description: '**Papéis permitidos:** REQUESTER, ADMIN\n\nPermitido a partir de DRAFT, SUBMITTED ou IN_QUOTATION.',
   })
   @ApiResponse({
     status: 409,
@@ -161,7 +168,7 @@ export class PurchaseRequestsController {
   @Roles('BUYER', 'ADMIN')
   @ApiOperation({
     summary: 'Concluir solicitação',
-    description: 'APPROVED -> COMPLETED.',
+    description: '**Papéis permitidos:** BUYER, ADMIN\n\nAPPROVED → COMPLETED',
   })
   @ApiResponse({
     status: 409,
@@ -178,7 +185,7 @@ export class PurchaseRequestsController {
   @ApiOperation({
     summary: 'Histórico de mudanças de status',
     description:
-      'Lista cada transição de estado registrada para a solicitação.',
+      '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN\n\nLista cada transição de estado registrada para a solicitação.',
   })
   history(
     @Param('id', ParseIntPipe) id: number,

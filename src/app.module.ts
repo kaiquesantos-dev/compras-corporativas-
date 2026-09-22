@@ -16,6 +16,18 @@ import { ApprovalsModule } from './purchase-requests/approvals/approvals.module'
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
+// Módulo raiz da aplicação. Reúne todos os módulos de domínio e registra,
+// via injeção de dependência (APP_GUARD/APP_PIPE/APP_FILTER/APP_INTERCEPTOR),
+// as peças que precisam valer para TODA a aplicação:
+// - ApiKeyGuard: exige o header X-API-KEY em toda rota;
+// - ValidationPipe: valida e sanitiza o body de toda requisição;
+// - PrismaExceptionFilter: converte erros do Prisma (ex: violação de FK/unique)
+//   em respostas HTTP coerentes (409/404), em vez de vazar como 500;
+// - LoggingInterceptor: loga cada requisição de forma estruturada.
+//
+// Registrar essas peças aqui (e não só no main.ts) garante que qualquer
+// TestingModule que importe o AppModule nos testes e2e tenha exatamente o
+// mesmo comportamento do servidor real.
 @Module({
   imports: [
     ConfigModule.forRoot({

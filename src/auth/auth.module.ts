@@ -6,6 +6,9 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 
+// Módulo que agrupa tudo relacionado a login/JWT. Ele configura o JwtModule
+// (que sabe assinar e conferir tokens) usando o segredo e o tempo de
+// expiração que vêm do .env — nunca hardcoded no código.
 @Module({
   imports: [
     PassportModule,
@@ -13,9 +16,10 @@ import { JwtStrategy } from './jwt.strategy';
       inject: [ConfigService],
       useFactory: (config: ConfigService): JwtModuleOptions => ({
         secret: config.getOrThrow<string>('JWT_SECRET'),
-        // JWT_EXPIRES_IN is an env string (e.g. "1d"); @nestjs/jwt's signOptions.expiresIn
-        // is typed against the `ms` package's branded string literal type, which a plain
-        // `string` from ConfigService can never satisfy structurally.
+        // JWT_EXPIRES_IN vem do .env como uma string comum (ex: "1d"), mas o
+        // tipo esperado por signOptions.expiresIn é mais específico (vem da
+        // lib "ms"). O TypeScript não consegue provar que a string bate com
+        // esse formato, então usamos "as any" só nesse ponto pontual.
         signOptions: {
           expiresIn: config.getOrThrow<string>('JWT_EXPIRES_IN') as any,
         },

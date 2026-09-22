@@ -25,6 +25,9 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
+// Aqui os guards e o @Roles('ADMIN') ficam no controller inteiro (e não
+// método a método, como em Departments): TODA rota de usuários, incluindo
+// as de leitura, é restrita a ADMIN.
 @ApiTags('Usuários')
 @ApiBearerAuth()
 @ApiSecurity('x-api-key')
@@ -37,7 +40,7 @@ export class UsersController {
   @Post()
   @ApiOperation({
     summary: 'Criar usuário',
-    description: 'Cria um novo usuário no sistema. Restrito a ADMIN.',
+    description: '**Papéis permitidos:** ADMIN\n\nCria um novo usuário no sistema.',
   })
   @ApiResponse({ status: 201, description: 'Usuário criado com sucesso.' })
   @ApiResponse({
@@ -60,21 +63,27 @@ export class UsersController {
   @ApiOperation({
     summary: 'Listar usuários',
     description:
-      'Lista usuários com paginação e ordenação. Nunca retorna a senha.',
+      '**Papéis permitidos:** ADMIN\n\nLista usuários com paginação e ordenação. Nunca retorna a senha.',
   })
   findAll(@Query() query: PaginationQueryDto) {
     return this.usersService.findAll(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Buscar usuário por ID' })
+  @ApiOperation({
+    summary: 'Buscar usuário por ID',
+    description: '**Papéis permitidos:** ADMIN',
+  })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Atualizar usuário' })
+  @ApiOperation({
+    summary: 'Atualizar usuário',
+    description: '**Papéis permitidos:** ADMIN',
+  })
   @ApiResponse({
     status: 404,
     description: 'Usuário ou departamento não encontrado.',
@@ -84,7 +93,10 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Remover usuário' })
+  @ApiOperation({
+    summary: 'Remover usuário',
+    description: '**Papéis permitidos:** ADMIN',
+  })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
   @ApiResponse({
     status: 409,

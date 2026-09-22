@@ -11,6 +11,10 @@ import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { SupplierQueryDto } from './dto/supplier-query.dto';
 
+// CRUD de fornecedores, com um diferencial: ao cadastrar/atualizar, os
+// dados de razão social e endereço são preenchidos automaticamente
+// consultando o CNPJ na BrasilAPI (via CnpjLookupService) — o comprador só
+// precisa digitar o CNPJ.
 @Injectable()
 export class SuppliersService {
   constructor(
@@ -20,8 +24,15 @@ export class SuppliersService {
 
   async create(dto: CreateSupplierDto) {
     const enrichment = await this.cnpjLookupService.lookup(dto.document);
+    // Regra de prioridade: se o cliente digitou o campo manualmente, esse
+    // valor manda. Só usamos o dado vindo da consulta de CNPJ para
+    // preencher o que ficou em branco.
     const legalName = dto.legalName ?? enrichment?.legalName;
 
+    // Só falha se NÃO tivermos razão social de nenhuma das duas formas —
+    // ou seja, a consulta de CNPJ falhou E o cliente também não informou
+    // manualmente. Assim a funcionalidade continua funcionando mesmo se a
+    // BrasilAPI estiver fora do ar, desde que os dados venham no body.
     if (!legalName) {
       throw new BadRequestException(
         'Não foi possível validar o CNPJ (serviço indisponível ou CNPJ inexistente). Informe "legalName" manualmente para prosseguir.',
@@ -73,6 +84,9 @@ export class SuppliersService {
   async update(id: number, dto: UpdateSupplierDto) {
     await this.findOne(id);
 
+    // Só refaz a consulta de CNPJ se o documento estiver sendo alterado —
+    // não faz sentido re-consultar toda vez que só o telefone muda, por
+    // exemplo.
     const enrichment = dto.document
       ? await this.cnpjLookupService.lookup(dto.document)
       : null;
@@ -98,8 +112,9 @@ export class SuppliersService {
 
   async remove(id: number) {
     await this.findOne(id);
-    // P2003 (supplier still referenced by a Quote) is mapped to 409 by the
-    // global PrismaExceptionFilter — no per-service special-casing needed.
+    // Se este fornecedor ainda tiver cotações vinculadas, o Prisma recusa a
+    // exclusão (erro P2003) e o PrismaExceptionFilter global já transforma
+    // isso em 409 automaticamente — não precisamos checar isso na mão aqui.
     await this.prisma.supplier.delete({ where: { id } });
     return { message: 'Fornecedor removido com sucesso.' };
   }

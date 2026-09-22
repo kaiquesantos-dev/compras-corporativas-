@@ -6,6 +6,11 @@ import { buildPaginationParams } from '../common/pagination/paginate';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
+// Lista de campos do usuário que é SEGURO devolver numa resposta HTTP —
+// repare que "password" não está aqui. Usamos essa mesma constante em
+// TODA consulta de usuário (aqui e também quando outro módulo, como
+// PurchaseRequests, precisa trazer os dados do solicitante junto). Isso
+// evita que alguém esqueça de excluir a senha numa consulta nova.
 export const USER_SELECT = {
   id: true,
   name: true,
@@ -15,10 +20,17 @@ export const USER_SELECT = {
   createdAt: true,
 } as const;
 
+// CRUD de usuários, restrito a ADMIN (a restrição de papel está no
+// controller). Além do CRUD básico, cuida de duas coisas importantes:
+// nunca devolver a senha, e sempre criptografar (hash) a senha antes de
+// salvar no banco.
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Se um departamentId foi informado, confirma que ele existe de verdade
+  // antes de vincular o usuário a ele — evita criar um usuário "órfão"
+  // apontando para um departamento inexistente.
   private async assertDepartmentExists(departmentId?: number) {
     if (!departmentId) return;
     const department = await this.prisma.department.findUnique({
@@ -31,6 +43,8 @@ export class UsersService {
 
   async create(dto: CreateUserDto) {
     await this.assertDepartmentExists(dto.departmentId);
+    // bcrypt.hash "embaralha" a senha de um jeito que não dá pra reverter —
+    // nem nós, olhando o banco, conseguimos saber qual é a senha original.
     const password = await bcrypt.hash(dto.password, 10);
 
     return this.prisma.user.create({
@@ -70,6 +84,8 @@ export class UsersService {
     await this.assertDepartmentExists(dto.departmentId);
 
     const data: Record<string, unknown> = { ...dto };
+    // Só gera um novo hash se o cliente realmente mandou uma senha nova —
+    // senão manteríamos a senha antiga intacta.
     if (dto.password) {
       data.password = await bcrypt.hash(dto.password, 10);
     }

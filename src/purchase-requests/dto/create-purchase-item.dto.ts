@@ -8,6 +8,9 @@ import {
   Min,
 } from 'class-validator';
 
+// Representa um item dentro da lista "items" de CreatePurchaseRequestDto
+// (ex: "5 notebooks"). Nunca é usado sozinho — sempre vem aninhado dentro
+// de uma solicitação de compra.
 export class CreatePurchaseItemDto {
   @ApiProperty({
     description: 'Descrição do item.',

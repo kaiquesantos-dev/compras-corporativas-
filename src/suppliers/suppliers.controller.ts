@@ -25,6 +25,8 @@ import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { SupplierQueryDto } from './dto/supplier-query.dto';
 import { SuppliersService } from './suppliers.service';
 
+// Consulta (GET) é liberada pra qualquer usuário autenticado; cadastrar e
+// editar exige BUYER ou ADMIN; remover exige ADMIN.
 @ApiTags('Fornecedores')
 @ApiBearerAuth()
 @ApiSecurity('x-api-key')
@@ -39,7 +41,7 @@ export class SuppliersController {
   @ApiOperation({
     summary: 'Cadastrar fornecedor',
     description:
-      'Cadastra um fornecedor a partir do CNPJ. Razão social e endereço são preenchidos automaticamente via consulta à Receita Federal (BrasilAPI) quando não informados manualmente; campos enviados manualmente sempre têm prioridade sobre a consulta.',
+      '**Papéis permitidos:** BUYER, ADMIN\n\nCadastra um fornecedor a partir do CNPJ. Razão social e endereço são preenchidos automaticamente via consulta à Receita Federal (BrasilAPI) quando não informados manualmente; campos enviados manualmente sempre têm prioridade sobre a consulta.',
   })
   @ApiResponse({ status: 201, description: 'Fornecedor cadastrado.' })
   @ApiResponse({
@@ -62,14 +64,17 @@ export class SuppliersController {
   @Get()
   @ApiOperation({
     summary: 'Listar fornecedores',
-    description: 'Qualquer usuário autenticado.',
+    description: '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN',
   })
   findAll(@Query() query: SupplierQueryDto) {
     return this.suppliersService.findAll(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Buscar fornecedor por ID' })
+  @ApiOperation({
+    summary: 'Buscar fornecedor por ID',
+    description: '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN',
+  })
   @ApiResponse({ status: 404, description: 'Fornecedor não encontrado.' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.suppliersService.findOne(id);
@@ -78,7 +83,10 @@ export class SuppliersController {
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles('BUYER', 'ADMIN')
-  @ApiOperation({ summary: 'Atualizar fornecedor' })
+  @ApiOperation({
+    summary: 'Atualizar fornecedor',
+    description: '**Papéis permitidos:** BUYER, ADMIN',
+  })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateSupplierDto,
@@ -89,7 +97,10 @@ export class SuppliersController {
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
-  @ApiOperation({ summary: 'Remover fornecedor' })
+  @ApiOperation({
+    summary: 'Remover fornecedor',
+    description: '**Papéis permitidos:** ADMIN',
+  })
   @ApiResponse({
     status: 409,
     description: 'Fornecedor possui cotações vinculadas.',

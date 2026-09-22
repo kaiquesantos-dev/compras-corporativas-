@@ -2,6 +2,9 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString } from 'class-validator';
 import { IsCnpj } from '../../common/validators/is-cnpj.validator';
 
+// Só o "document" (CNPJ) é obrigatório de verdade — todo o resto é
+// opcional porque o SuppliersService tenta preencher automaticamente via
+// consulta de CNPJ (BrasilAPI). Ver SuppliersService.create.
 export class CreateSupplierDto {
   @ApiProperty({
     description: 'CNPJ do fornecedor, com ou sem máscara.',

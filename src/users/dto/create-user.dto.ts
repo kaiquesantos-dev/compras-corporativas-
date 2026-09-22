@@ -9,6 +9,9 @@ import {
 } from 'class-validator';
 import { Role } from '../../generated/prisma/client';
 
+// Body esperado para criar um usuário. Note que o cliente escolhe o "role"
+// livremente aqui — isso só é seguro porque este endpoint inteiro já é
+// restrito a ADMIN (ver UsersController).
 export class CreateUserDto {
   @ApiProperty({
     description: 'Nome completo do usuário.',

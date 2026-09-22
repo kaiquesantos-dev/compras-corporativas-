@@ -9,6 +9,8 @@ import {
 } from 'class-validator';
 import { Role } from '../../generated/prisma/client';
 
+// Igual ao CreateUserDto, mas todos os campos são opcionais — o cliente só
+// envia o que realmente quer atualizar (atualização parcial via PATCH).
 export class UpdateUserDto {
   @ApiPropertyOptional({ example: 'Maria Silva' })
   @IsOptional()

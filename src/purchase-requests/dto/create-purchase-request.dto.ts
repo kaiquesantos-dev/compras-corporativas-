@@ -8,6 +8,11 @@ import {
 } from 'class-validator';
 import { CreatePurchaseItemDto } from './create-purchase-item.dto';
 
+// Body para criar uma solicitação de compra. @ValidateNested + @Type fazem
+// o class-validator "entrar" dentro de cada item da lista "items" e validar
+// cada um deles também (não só a lista em si), usando as regras definidas
+// em CreatePurchaseItemDto. @ArrayMinSize(1) garante que venha pelo menos
+// um item — uma solicitação sem nenhum item não faz sentido.
 export class CreatePurchaseRequestDto {
   @ApiProperty({
     description: 'Título curto da solicitação.',

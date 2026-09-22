@@ -7,6 +7,11 @@ import {
   validateSync,
 } from 'class-validator';
 
+// Lista de todas as variáveis de ambiente que a aplicação precisa para
+// funcionar, com os tipos e validações esperados. Isso é o "contrato" do
+// .env — se faltar uma variável ou ela vier no formato errado, a aplicação
+// nem chega a subir (falha rápido, com uma mensagem clara, em vez de dar
+// erro estranho depois em algum lugar aleatório do código).
 export class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
@@ -34,6 +39,10 @@ export class EnvironmentVariables {
   CNPJ_API_TIMEOUT_MS: number;
 }
 
+// Função chamada automaticamente pelo ConfigModule assim que a aplicação
+// sobe (veja app.module.ts). Ela pega o objeto "cru" com as variáveis de
+// ambiente, transforma nos tipos certos (string vira número, por exemplo)
+// e valida tudo de uma vez, usando as regras da classe acima.
 export function validateEnv(config: Record<string, unknown>) {
   const validated = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,

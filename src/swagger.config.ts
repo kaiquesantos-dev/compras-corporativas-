@@ -1,6 +1,12 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
+// Monta a página de documentação interativa da API (Swagger UI), disponível
+// em /docs. Ela lê automaticamente os decorators @ApiTags/@ApiOperation/
+// @ApiProperty espalhados pelos controllers e DTOs — aqui só definimos o
+// "cabeçalho" da documentação (título, descrição, versão) e os dois tipos
+// de autenticação que o usuário pode informar no botão "Authorize" da UI:
+// o token JWT (bearer) e a chave de API (x-api-key).
 export function configureSwagger(app: INestApplication): void {
   const config = new DocumentBuilder()
     .setTitle('API de Compras Corporativas')
@@ -28,5 +34,15 @@ Toda rota exige o header \`X-API-KEY\`. A maioria das rotas também exige um tok
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
+
+  // O ApiKeyGuard é global no backend (toda rota exige X-API-KEY), mas o
+  // Swagger só anexa automaticamente a chave nas requisições de "Try it
+  // out" para rotas que declaram o requisito de segurança explicitamente.
+  // Em vez de decorar cada controller com @ApiSecurity('x-api-key') (fácil
+  // de esquecer em um novo endpoint), aplicamos aqui de uma vez para todo
+  // o documento — assim a documentação nunca fica dessincronizada da regra
+  // real do backend.
+  document.security = [{ 'x-api-key': [] }];
+
   SwaggerModule.setup('docs', app, document);
 }

@@ -5,6 +5,9 @@ import { buildPaginationParams } from '../common/pagination/paginate';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 
+// CRUD simples de Departamento. É o cadastro mais básico do sistema —
+// serve principalmente para agrupar usuários e solicitações de compra por
+// setor da empresa (ex: "Tecnologia", "Financeiro").
 @Injectable()
 export class DepartmentsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -26,6 +29,9 @@ export class DepartmentsService {
     return { data, total, page: query.page ?? 1, pageSize: take };
   }
 
+  // Busca por id e já lança 404 se não existir — assim, quem chamar este
+  // método (update, remove, ou outro módulo) não precisa repetir essa
+  // checagem, só tratar o caso de sucesso.
   async findOne(id: number) {
     const department = await this.prisma.department.findUnique({
       where: { id },
@@ -43,8 +49,10 @@ export class DepartmentsService {
 
   async remove(id: number) {
     await this.findOne(id);
-    // No pre-check for linked users/purchase requests here on purpose: the
-    // global PrismaExceptionFilter already maps the resulting P2003 to 409.
+    // Não checamos aqui manualmente se existem usuários/solicitações
+    // vinculados ao departamento de propósito: se houver um vínculo que
+    // impede a exclusão, o Prisma lança o erro P2003 (chave estrangeira) e
+    // o PrismaExceptionFilter global já converte isso em 409 sozinho.
     await this.prisma.department.delete({ where: { id } });
     return { message: 'Departamento removido com sucesso.' };
   }

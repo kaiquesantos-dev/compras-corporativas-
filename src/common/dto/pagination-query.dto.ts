@@ -2,6 +2,10 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
+// Query params compartilhados por todo endpoint de listagem (GET /users,
+// GET /suppliers, GET /purchase-requests, etc.): página, tamanho da página
+// e ordenação. Cada módulo usa (ou estende) este mesmo DTO em vez de
+// reinventar a paginação a cada endpoint.
 export class PaginationQueryDto {
   @ApiPropertyOptional({
     description: 'Número da página (começa em 1).',

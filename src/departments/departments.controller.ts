@@ -25,6 +25,10 @@ import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { DepartmentsService } from './departments.service';
 
+// Exemplo de "acesso misto": o @UseGuards(JwtAuthGuard) aqui no topo já
+// exige login para QUALQUER rota deste controller. Mas só os métodos que
+// também têm @Roles('ADMIN') exigem, além de estar logado, ser ADMIN — os
+// GETs de consulta ficam liberados para qualquer papel autenticado.
 @ApiTags('Departamentos')
 @ApiBearerAuth()
 @ApiSecurity('x-api-key')
@@ -38,7 +42,7 @@ export class DepartmentsController {
   @Roles('ADMIN')
   @ApiOperation({
     summary: 'Criar departamento',
-    description: 'Restrito a ADMIN.',
+    description: '**Papéis permitidos:** ADMIN',
   })
   @ApiResponse({ status: 201, description: 'Departamento criado.' })
   @ApiResponse({
@@ -52,14 +56,17 @@ export class DepartmentsController {
   @Get()
   @ApiOperation({
     summary: 'Listar departamentos',
-    description: 'Qualquer usuário autenticado.',
+    description: '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN',
   })
   findAll(@Query() query: PaginationQueryDto) {
     return this.departmentsService.findAll(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Buscar departamento por ID' })
+  @ApiOperation({
+    summary: 'Buscar departamento por ID',
+    description: '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN',
+  })
   @ApiResponse({ status: 404, description: 'Departamento não encontrado.' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.departmentsService.findOne(id);
@@ -70,7 +77,7 @@ export class DepartmentsController {
   @Roles('ADMIN')
   @ApiOperation({
     summary: 'Atualizar departamento',
-    description: 'Restrito a ADMIN.',
+    description: '**Papéis permitidos:** ADMIN',
   })
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -84,7 +91,7 @@ export class DepartmentsController {
   @Roles('ADMIN')
   @ApiOperation({
     summary: 'Remover departamento',
-    description: 'Restrito a ADMIN.',
+    description: '**Papéis permitidos:** ADMIN',
   })
   @ApiResponse({
     status: 409,

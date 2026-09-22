@@ -13,6 +13,11 @@ import { UpdatePurchaseRequestDto } from './dto/update-purchase-request.dto';
 import { PurchaseRequestQueryDto } from './dto/purchase-request-query.dto';
 import { PurchaseRequestStatusService } from './purchase-request-status.service';
 
+// Este é o service mais importante do sistema: cuida do CRUD da
+// solicitação de compra e das ações que fazem ela mudar de estado
+// (submit, cancel, complete). As transições de estado em si (o que pode
+// virar o quê) ficam delegadas ao PurchaseRequestStatusService — este
+// service aqui só decide QUEM pode fazer cada ação e QUANDO ela é chamada.
 @Injectable()
 export class PurchaseRequestsService {
   constructor(
@@ -20,6 +25,12 @@ export class PurchaseRequestsService {
     private readonly statusService: PurchaseRequestStatusService,
   ) {}
 
+  // Cria a solicitação já em DRAFT, junto com os itens (nested create do
+  // Prisma: os PurchaseItem são criados na mesma operação, vinculados
+  // automaticamente). O departamento é "tirado uma foto" do usuário no
+  // momento da criação (departmentId do requester), não é uma referência
+  // que muda se o usuário trocar de departamento depois — assim o
+  // histórico da solicitação continua fazendo sentido no futuro.
   async create(dto: CreatePurchaseRequestDto, user: AuthenticatedUser) {
     const requester = await this.prisma.user.findUnique({
       where: { id: user.id },
@@ -43,6 +54,10 @@ export class PurchaseRequestsService {
     });
   }
 
+  // Lista as solicitações com paginação. A regra de "quem vê o quê" mora
+  // bem aqui: um REQUESTER só enxerga as próprias solicitações; qualquer
+  // outro papel (BUYER/APPROVER/ADMIN) vê todas. Isso é o que garante que
+  // um usuário não consiga espiar solicitações de outra pessoa só de listar.
   async findAll(query: PurchaseRequestQueryDto, user: AuthenticatedUser) {
     const { skip, take, orderBy } = buildPaginationParams(
       query,
@@ -64,6 +79,8 @@ export class PurchaseRequestsService {
         take,
         orderBy,
         where,
+        // USER_SELECT garante que os dados do solicitante venham junto
+        // sem nunca incluir a senha, mesmo numa relação aninhada como esta.
         include: { items: true, requester: { select: USER_SELECT } },
       }),
       this.prisma.purchaseRequest.count({ where }),
@@ -89,6 +106,9 @@ export class PurchaseRequestsService {
     return pr;
   }
 
+  // Só o dono pode editar, e só enquanto a solicitação ainda está em DRAFT
+  // (depois de submeter, ela entra no fluxo de aprovação e não faz mais
+  // sentido editar título/justificativa livremente).
   async update(
     id: number,
     dto: UpdatePurchaseRequestDto,
@@ -107,6 +127,11 @@ export class PurchaseRequestsService {
     });
   }
 
+  // Move a solicitação de DRAFT para SUBMITTED. Repare no padrão que se
+  // repete em submit/cancel/complete: tudo acontece dentro de uma
+  // transação ($transaction), porque queremos que "gravar o histórico" e
+  // "atualizar o status" aconteçam juntos — se uma das duas falhar, a
+  // outra é desfeita também.
   async submit(id: number, user: AuthenticatedUser) {
     const pr = await this.findOwnedForWrite(id, user);
     return this.prisma.$transaction(async (tx) => {
@@ -124,6 +149,9 @@ export class PurchaseRequestsService {
     });
   }
 
+  // Cancelar é permitido pelo dono OU por um ADMIN (diferente de
+  // submit/update, que só o dono pode fazer) — é uma exceção proposital
+  // para que um administrador consiga limpar solicitações travadas.
   async cancel(id: number, user: AuthenticatedUser) {
     const pr = await this.prisma.purchaseRequest.findUnique({ where: { id } });
     if (!pr) {
@@ -150,6 +178,9 @@ export class PurchaseRequestsService {
     });
   }
 
+  // Marca a compra como finalizada (depois de aprovada). Quem pode chamar
+  // isso (BUYER/ADMIN) é decidido no controller via @Roles — aqui só
+  // fazemos a transição de estado.
   async complete(id: number, user: AuthenticatedUser) {
     const pr = await this.prisma.purchaseRequest.findUnique({ where: { id } });
     if (!pr) {
@@ -171,6 +202,8 @@ export class PurchaseRequestsService {
     });
   }
 
+  // Devolve a linha do tempo completa de mudanças de status dessa
+  // solicitação — é o que atende ao requisito de "histórico" do enunciado.
   async history(id: number, user: AuthenticatedUser) {
     const pr = await this.prisma.purchaseRequest.findUnique({ where: { id } });
     if (!pr) {
@@ -184,6 +217,10 @@ export class PurchaseRequestsService {
     });
   }
 
+  // Checagem usada em endpoints de LEITURA (findOne, history): um
+  // REQUESTER só pode ver a própria solicitação; os outros papéis podem
+  // ver qualquer uma. É esta função que impede alguém de trocar o ID na
+  // URL e espiar a solicitação de outra pessoa.
   private assertViewAccess(
     pr: { requesterId: number },
     user: AuthenticatedUser,
@@ -195,6 +232,9 @@ export class PurchaseRequestsService {
     }
   }
 
+  // Checagem usada em endpoints de ESCRITA (update, submit): aqui a regra
+  // é mais rígida — só o próprio dono pode mexer, nem outro REQUESTER nem
+  // BUYER/APPROVER têm passe livre (diferente da leitura).
   private async findOwnedForWrite(id: number, user: AuthenticatedUser) {
     const pr = await this.prisma.purchaseRequest.findUnique({ where: { id } });
     if (!pr) {

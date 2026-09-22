@@ -2,6 +2,8 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsEmail, IsOptional, IsString } from 'class-validator';
 import { IsCnpj } from '../../common/validators/is-cnpj.validator';
 
+// Igual ao CreateSupplierDto, mas tudo opcional (atualização parcial), com
+// o campo extra "isActive" pra ativar/desativar o fornecedor sem apagá-lo.
 export class UpdateSupplierDto {
   @ApiPropertyOptional({ example: '19.131.243/0001-97' })
   @IsOptional()

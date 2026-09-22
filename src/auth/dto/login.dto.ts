@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsString, MinLength } from 'class-validator';
 
+// DTO = "Data Transfer Object": define o formato esperado do body da
+// requisição de login. O ValidationPipe global usa os decorators abaixo
+// (@IsEmail, @MinLength etc.) para validar automaticamente antes mesmo de
+// chegar no controller — se algo estiver errado, responde 400 sozinho.
 export class LoginDto {
   @ApiProperty({
     description: 'Email cadastrado do usuário.',
