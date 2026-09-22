@@ -141,8 +141,6 @@ O seed também cria 2 fornecedores e 3 solicitações de compra de demonstraçã
 
 ## Autenticação e segurança
 
-- **Toda requisição**, sem exceção, exige o header `X-API-KEY` com o valor de `API_KEY` do `.env` (exceto `GET /docs`, que fica público por ser apenas documentação).
-- A maioria das rotas também exige um token JWT: faça `POST /auth/login` com `email`/`password`, e envie o `access_token` retornado como `Authorization: Bearer <token>` nas demais chamadas.
 - Autorização por papel: `REQUESTER`, `BUYER`, `APPROVER`, `ADMIN` — ver a matriz de permissões na tabela de endpoints abaixo.
 - Senhas nunca são retornadas em nenhuma resposta (nem nas relações aninhadas, como `requester` dentro de uma solicitação de compra).
 - `.env`/`.env.test` nunca são versionados (estão no `.gitignore`); apenas `.env.example`/`.env.test.example`, com placeholders.
