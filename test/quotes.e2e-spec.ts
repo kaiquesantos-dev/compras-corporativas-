@@ -169,6 +169,44 @@ describe('Quotes (e2e)', () => {
       .expect(400);
   });
 
+  it('creates a quote with the proposal attached in the same request (multipart)', async () => {
+    const purchaseRequestId = await createSubmittedPurchaseRequest();
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const supplierId = await createSupplier(buyer.token, CNPJ_A);
+
+    const created = await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .field('supplierId', String(supplierId))
+      .field('totalValue', '13500.00')
+      .attach('file', Buffer.from('%PDF-1.4 conteudo de teste'), 'proposta.pdf')
+      .expect(201);
+
+    expect(created.body.proposalFileName).toBe('proposta.pdf');
+
+    const download = await apiRequest(app)
+      .get(
+        `/purchase-requests/${purchaseRequestId}/quotes/${created.body.id}/proposal`,
+      )
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .expect(200);
+    expect(download.headers['content-type']).toContain('application/pdf');
+  });
+
+  it('rejects an invalid file type when attached at quote creation (400)', async () => {
+    const purchaseRequestId = await createSubmittedPurchaseRequest();
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const supplierId = await createSupplier(buyer.token, CNPJ_A);
+
+    await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .field('supplierId', String(supplierId))
+      .field('totalValue', '13500.00')
+      .attach('file', Buffer.from('conteudo qualquer'), 'proposta.exe')
+      .expect(400);
+  });
+
   it('rejects a proposal upload larger than 5MB with 400', async () => {
     const purchaseRequestId = await createSubmittedPurchaseRequest();
     const buyer = await seedUserAndLogin(app, prisma, 'BUYER');

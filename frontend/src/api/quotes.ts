@@ -12,11 +12,31 @@ export interface CreateQuoteInput {
   totalValue: number
   validUntil?: string
   notes?: string
+  // Opcional: quando informado, a proposta é anexada na mesma chamada que
+  // cria a cotação, em vez de precisar de um upload separado depois.
+  file?: File
 }
 
 export async function createQuote(input: CreateQuoteInput): Promise<Quote> {
-  const { purchaseRequestId, ...body } = input
-  const { data } = await apiClient.post<Quote>(`/purchase-requests/${purchaseRequestId}/quotes`, body)
+  const { purchaseRequestId, file, ...fields } = input
+
+  // Só usa multipart quando há arquivo — mantém a chamada mais simples
+  // (JSON) para o caso comum de cotação sem proposta anexada ainda.
+  if (!file) {
+    const { data } = await apiClient.post<Quote>(`/purchase-requests/${purchaseRequestId}/quotes`, fields)
+    return data
+  }
+
+  const formData = new FormData()
+  formData.append('supplierId', String(fields.supplierId))
+  formData.append('totalValue', String(fields.totalValue))
+  if (fields.validUntil) formData.append('validUntil', fields.validUntil)
+  if (fields.notes) formData.append('notes', fields.notes)
+  formData.append('file', file)
+
+  const { data } = await apiClient.post<Quote>(`/purchase-requests/${purchaseRequestId}/quotes`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
   return data
 }
 

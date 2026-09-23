@@ -21,6 +21,7 @@ export class QuotesService {
     purchaseRequestId: number,
     dto: CreateQuoteDto,
     user: AuthenticatedUser,
+    file?: Express.Multer.File,
   ) {
     const pr = await this.purchaseRequestsService.findOne(
       purchaseRequestId,
@@ -63,6 +64,16 @@ export class QuotesService {
           totalValue: dto.totalValue,
           validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
           notes: dto.notes,
+          ...(file
+            ? {
+                proposalFileName: file.originalname,
+                proposalFileMime: file.mimetype,
+                proposalFileSize: file.size,
+                // Ver comentário equivalente em uploadProposal() sobre o tipo
+                // Bytes do Prisma exigir Uint8Array em vez de Buffer.
+                proposalFileContent: Uint8Array.from(file.buffer),
+              }
+            : {}),
         },
       });
     });

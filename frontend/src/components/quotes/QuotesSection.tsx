@@ -202,6 +202,7 @@ function NewQuoteForm({
   const [supplierId, setSupplierId] = useState('')
   const [totalValue, setTotalValue] = useState('')
   const [notes, setNotes] = useState('')
+  const [file, setFile] = useState<File | null>(null)
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => fetchSuppliers() })
 
@@ -217,6 +218,7 @@ function NewQuoteForm({
       supplierId: Number(supplierId),
       totalValue: Number(totalValue),
       notes: notes || undefined,
+      file: file ?? undefined,
     })
   }
 
@@ -240,6 +242,19 @@ function NewQuoteForm({
         required
       />
       <TextField label="Observações (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
+
+      <div>
+        <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-muted uppercase">
+          Proposta (opcional)
+        </label>
+        <input
+          type="file"
+          accept=".pdf,.png,.jpg,.jpeg"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="w-full rounded-[5px] border border-border bg-surface-card px-4 py-3 text-sm text-ink file:mr-3 file:rounded-[5px] file:border-0 file:bg-grey1 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:uppercase file:text-ink"
+        />
+        <p className="mt-1 text-xs text-ink-muted">PDF, PNG ou JPEG, até 5MB. Pode ser anexada depois também.</p>
+      </div>
 
       {createMutation.isError && (
         <p className="text-sm text-accent-text">

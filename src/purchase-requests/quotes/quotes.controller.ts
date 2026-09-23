@@ -46,12 +46,39 @@ export class QuotesController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles('BUYER', 'ADMIN')
+  // "file" é opcional aqui: o multer só entra em ação quando a request é
+  // multipart/form-data (o que permite anexar a proposta já na criação da
+  // cotação); uma request application/json comum passa direto por ele sem
+  // efeito nenhum, então os testes/integrações existentes continuam válidos.
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @ApiConsumes('multipart/form-data', 'application/json')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['supplierId', 'totalValue'],
+      properties: {
+        supplierId: { type: 'number', example: 1 },
+        totalValue: { type: 'number', example: 13500.0 },
+        validUntil: { type: 'string', format: 'date', example: '2026-12-31' },
+        notes: { type: 'string', example: 'Prazo de entrega de 15 dias úteis.' },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Proposta (opcional, já na criação): PDF, PNG ou JPEG, até 5MB.',
+        },
+      },
+    },
+  })
   @ApiOperation({
     summary: 'Registrar cotação',
     description:
-      '**Papéis permitidos:** BUYER, ADMIN\n\nRegistra a cotação de um fornecedor para a solicitação. Move SUBMITTED → IN_QUOTATION automaticamente na primeira cotação registrada.',
+      '**Papéis permitidos:** BUYER, ADMIN\n\nRegistra a cotação de um fornecedor para a solicitação. Move SUBMITTED → IN_QUOTATION automaticamente na primeira cotação registrada. Aceita anexar a proposta (PDF, PNG ou JPEG, até 5MB) já nesta mesma chamada, via multipart/form-data.',
   })
   @ApiResponse({ status: 201, description: 'Cotação registrada.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Dados inválidos, ou arquivo de tipo não permitido/maior que 5MB.',
+  })
   @ApiResponse({
     status: 404,
     description: 'Solicitação ou fornecedor não encontrado.',
@@ -63,9 +90,16 @@ export class QuotesController {
   create(
     @Param('purchaseRequestId', ParseIntPipe) purchaseRequestId: number,
     @Body() dto: CreateQuoteDto,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({ fileType: /(pdf|png|jpe?g)$/i })
+        .addMaxSizeValidator({ maxSize: MAX_PROPOSAL_SIZE_BYTES })
+        .build({ fileIsRequired: false }),
+    )
+    file: Express.Multer.File | undefined,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.quotesService.create(purchaseRequestId, dto, user);
+    return this.quotesService.create(purchaseRequestId, dto, user, file);
   }
 
   @Get()

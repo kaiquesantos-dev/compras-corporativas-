@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsISO8601,
   IsInt,
@@ -15,11 +16,16 @@ export class CreateQuoteDto {
     description: 'ID do fornecedor que enviou a cotação.',
     example: 1,
   })
+  // O create() agora também aceita multipart/form-data (pra permitir anexar
+  // a proposta na mesma request) — nesse formato todo campo chega como
+  // string, então precisa de @Type pra virar number antes do @IsInt validar.
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   supplierId: number;
 
   @ApiProperty({ description: 'Valor total da cotação.', example: 13500.0 })
+  @Type(() => Number)
   @IsNumber()
   @Min(0.01, { message: 'totalValue deve ser maior que zero.' })
   @Max(1000000000)
