@@ -12,6 +12,7 @@ import { fetchSuppliers } from '../../api/suppliers'
 import type { PurchaseRequestStatus } from '../../api/types'
 import { Button } from '../ui/Button'
 import { TextField } from '../ui/TextField'
+import { Select } from '../ui/Select'
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -221,24 +222,14 @@ function NewQuoteForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 border-t border-grey1 pt-4">
-      <div>
-        <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-muted uppercase">
-          Fornecedor
-        </label>
-        <select
-          value={supplierId}
-          onChange={(e) => setSupplierId(e.target.value)}
-          required
-          className="w-full rounded-[5px] border border-border bg-surface-card px-4 py-3 text-ink"
-        >
-          <option value="">Selecione...</option>
-          {suppliers?.data.map((supplier) => (
-            <option key={supplier.id} value={supplier.id}>
-              {supplier.legalName}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Select label="Fornecedor" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} required>
+        <option value="">Selecione...</option>
+        {suppliers?.data.map((supplier) => (
+          <option key={supplier.id} value={supplier.id}>
+            {supplier.legalName}
+          </option>
+        ))}
+      </Select>
       <TextField
         label="Valor total"
         type="number"

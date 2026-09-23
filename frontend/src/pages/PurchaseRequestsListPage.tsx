@@ -4,18 +4,22 @@ import { Link } from 'react-router-dom'
 import { fetchPurchaseRequests } from '../api/purchase-requests'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Button } from '../components/ui/Button'
+import { Select } from '../components/ui/Select'
 import { Pagination } from '../components/ui/Pagination'
+import { statusLabels } from '../lib/status-labels'
 import { useAuthStore } from '../store/auth-store'
+import type { PurchaseRequestStatus } from '../api/types'
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' })
 
 export function PurchaseRequestsListPage() {
   const [page, setPage] = useState(1)
+  const [status, setStatus] = useState<PurchaseRequestStatus | ''>('')
   const user = useAuthStore((state) => state.user)
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['purchase-requests', page],
-    queryFn: () => fetchPurchaseRequests({ page, pageSize: 20 }),
+    queryKey: ['purchase-requests', page, status],
+    queryFn: () => fetchPurchaseRequests({ page, pageSize: 20, status: status || undefined }),
   })
 
   return (
@@ -28,6 +32,23 @@ export function PurchaseRequestsListPage() {
           </Link>
         )}
       </div>
+
+      <Select
+        label="Status"
+        value={status}
+        onChange={(e) => {
+          setStatus(e.target.value as PurchaseRequestStatus | '')
+          setPage(1)
+        }}
+        className="mb-6 max-w-xs"
+      >
+        <option value="">Todos os status</option>
+        {Object.entries(statusLabels).map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </Select>
 
       {isLoading && <p className="text-ink-muted">Carregando...</p>}
       {isError && <p className="text-accent-text">Não foi possível carregar as solicitações.</p>}

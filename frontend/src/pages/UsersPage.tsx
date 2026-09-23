@@ -6,6 +6,7 @@ import { fetchDepartments } from '../api/departments'
 import type { Role } from '../api/types'
 import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
+import { Select } from '../components/ui/Select'
 import { Modal } from '../components/ui/Modal'
 import { Pagination } from '../components/ui/Pagination'
 
@@ -143,38 +144,22 @@ function NewUserModal({
           required
         />
 
-        <div>
-          <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-muted uppercase">Papel</label>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as Role)}
-            className="w-full rounded-[5px] border border-border bg-surface-card px-4 py-3 text-ink"
-          >
-            {Object.entries(roleLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Select label="Papel" value={role} onChange={(e) => setRole(e.target.value as Role)}>
+          {Object.entries(roleLabels).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </Select>
 
-        <div>
-          <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-muted uppercase">
-            Departamento
-          </label>
-          <select
-            value={departmentId}
-            onChange={(e) => setDepartmentId(e.target.value)}
-            className="w-full rounded-[5px] border border-border bg-surface-card px-4 py-3 text-ink"
-          >
-            <option value="">Sem departamento</option>
-            {departments.map((dept) => (
-              <option key={dept.id} value={dept.id}>
-                {dept.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Select label="Departamento" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+          <option value="">Sem departamento</option>
+          {departments.map((dept) => (
+            <option key={dept.id} value={dept.id}>
+              {dept.name}
+            </option>
+          ))}
+        </Select>
 
         {error ? <p className="text-sm text-accent-text">{errorMessage(error, 'Não foi possível criar.')}</p> : null}
         <Button type="submit" disabled={pending}>
