@@ -193,6 +193,27 @@ describe('Quotes (e2e)', () => {
     expect(download.headers['content-type']).toContain('application/pdf');
   });
 
+  it('creates a quote via multipart with an empty file field, as some HTTP clients send when no file is chosen', async () => {
+    const purchaseRequestId = await createSubmittedPurchaseRequest();
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const supplierId = await createSupplier(buyer.token, CNPJ_A);
+
+    // Regression: Swagger UI's "Try it out" (and some other HTTP clients)
+    // sends the optional file field as an empty plain text part instead of
+    // omitting it when nothing is chosen. Multer only routes a part into
+    // req.file when it has a filename, so this landed as req.body.file, and
+    // ValidationPipe's forbidNonWhitelisted rejected the whole request with
+    // "property file should not exist" — a 400 that made the optional
+    // attachment look mandatory.
+    await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .field('supplierId', String(supplierId))
+      .field('totalValue', '13500.00')
+      .field('file', '')
+      .expect(201);
+  });
+
   it('rejects an invalid file type when attached at quote creation (400)', async () => {
     const purchaseRequestId = await createSubmittedPurchaseRequest();
     const buyer = await seedUserAndLogin(app, prisma, 'BUYER');

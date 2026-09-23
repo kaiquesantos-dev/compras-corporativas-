@@ -44,4 +44,21 @@ export class CreateQuoteDto {
   @IsString()
   @MaxLength(1000)
   notes?: string;
+
+  // O arquivo em si é lido via @UploadedFile() no controller, não daqui —
+  // esta propriedade só existe pra não deixar o ValidationPipe (com
+  // forbidNonWhitelisted) rejeitar a request. O FileInterceptor normalmente
+  // tira o campo "file" do body antes da validação quando é um arquivo de
+  // verdade, mas quando o cliente manda o campo vazio (ex: Swagger "Try it
+  // out" sem escolher nenhum arquivo), ele chega como um campo de texto
+  // comum — sem isso aqui, a request inteira era rejeitada com "property
+  // file should not exist", dando a falsa impressão de que o anexo é
+  // obrigatório mesmo estando marcado como opcional.
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Proposta (opcional): PDF, PNG ou JPEG, até 5MB.',
+  })
+  @IsOptional()
+  file?: unknown;
 }
