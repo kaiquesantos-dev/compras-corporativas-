@@ -144,22 +144,22 @@ function NewUserModal({
           required
         />
 
-        <Select label="Papel" value={role} onChange={(e) => setRole(e.target.value as Role)}>
-          {Object.entries(roleLabels).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </Select>
+        <Select
+          label="Papel"
+          value={role}
+          onChange={(v) => setRole(v as Role)}
+          options={Object.entries(roleLabels).map(([value, label]) => ({ value, label }))}
+        />
 
-        <Select label="Departamento" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
-          <option value="">Sem departamento</option>
-          {departments.map((dept) => (
-            <option key={dept.id} value={dept.id}>
-              {dept.name}
-            </option>
-          ))}
-        </Select>
+        <Select
+          label="Departamento"
+          value={departmentId}
+          onChange={setDepartmentId}
+          options={[
+            { value: '', label: 'Sem departamento' },
+            ...departments.map((dept) => ({ value: String(dept.id), label: dept.name })),
+          ]}
+        />
 
         {error ? <p className="text-sm text-accent-text">{errorMessage(error, 'Não foi possível criar.')}</p> : null}
         <Button type="submit" disabled={pending}>

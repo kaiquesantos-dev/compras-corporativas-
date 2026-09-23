@@ -213,6 +213,10 @@ function NewQuoteForm({
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    // Select customizado não tem validação nativa de "required" do
+    // navegador (não é um <select> de verdade) — a checagem precisa ser
+    // feita aqui antes de disparar a mutation.
+    if (!supplierId) return
     createMutation.mutate({
       purchaseRequestId,
       supplierId: Number(supplierId),
@@ -224,14 +228,13 @@ function NewQuoteForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 border-t border-grey1 pt-4">
-      <Select label="Fornecedor" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} required>
-        <option value="">Selecione...</option>
-        {suppliers?.data.map((supplier) => (
-          <option key={supplier.id} value={supplier.id}>
-            {supplier.legalName}
-          </option>
-        ))}
-      </Select>
+      <Select
+        label="Fornecedor"
+        value={supplierId}
+        onChange={setSupplierId}
+        required
+        options={suppliers?.data.map((supplier) => ({ value: String(supplier.id), label: supplier.legalName })) ?? []}
+      />
       <TextField
         label="Valor total"
         type="number"

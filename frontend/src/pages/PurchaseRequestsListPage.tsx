@@ -36,19 +36,16 @@ export function PurchaseRequestsListPage() {
       <Select
         label="Status"
         value={status}
-        onChange={(e) => {
-          setStatus(e.target.value as PurchaseRequestStatus | '')
+        onChange={(v) => {
+          setStatus(v as PurchaseRequestStatus | '')
           setPage(1)
         }}
         className="mb-6 max-w-xs"
-      >
-        <option value="">Todos os status</option>
-        {Object.entries(statusLabels).map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </Select>
+        options={[
+          { value: '', label: 'Todos os status' },
+          ...Object.entries(statusLabels).map(([value, label]) => ({ value, label })),
+        ]}
+      />
 
       {isLoading && <p className="text-ink-muted">Carregando...</p>}
       {isError && <p className="text-accent-text">Não foi possível carregar as solicitações.</p>}
