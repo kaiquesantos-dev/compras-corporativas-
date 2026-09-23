@@ -15,6 +15,7 @@ import { QuotesModule } from './purchase-requests/quotes/quotes.module';
 import { ApprovalsModule } from './purchase-requests/approvals/approvals.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { HealthController } from './health/health.controller';
 
 // Módulo raiz da aplicação. Reúne todos os módulos de domínio e registra,
 // via injeção de dependência (APP_GUARD/APP_PIPE/APP_FILTER/APP_INTERCEPTOR),
@@ -44,7 +45,7 @@ import { AppService } from './app.service';
     QuotesModule,
     ApprovalsModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, HealthController],
   providers: [
     AppService,
     { provide: APP_GUARD, useClass: ApiKeyGuard },
