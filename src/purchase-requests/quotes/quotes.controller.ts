@@ -16,6 +16,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiConsumes,
   ApiOperation,
   ApiResponse,
@@ -88,6 +89,15 @@ export class QuotesController {
   // gatekeeper keeps every "invalid upload" case consistently a 400.
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
   @ApiOperation({
     summary: 'Anexar proposta da cotação (upload)',
     description:
