@@ -9,7 +9,9 @@ describe('AppController', () => {
   let prismaService: { $queryRaw: jest.Mock };
 
   beforeEach(async () => {
-    prismaService = { $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]) };
+    prismaService = {
+      $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
+    };
 
     const app: TestingModule = await Test.createTestingModule({
       controllers: [AppController],

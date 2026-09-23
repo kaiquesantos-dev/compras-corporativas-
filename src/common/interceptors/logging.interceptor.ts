@@ -26,10 +26,7 @@ interface RequestWithUser {
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
 
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Observable<unknown> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const startedAt = Date.now();
     const request = context.switchToHttp().getRequest<RequestWithUser>();
     const response = context
@@ -59,9 +56,7 @@ export class LoggingInterceptor implements NestInterceptor {
       catchError((error: unknown) => {
         const statusCode =
           error instanceof HttpException ? error.getStatus() : 500;
-        this.logger.error(
-          JSON.stringify({ ...baseLog(), statusCode }),
-        );
+        this.logger.error(JSON.stringify({ ...baseLog(), statusCode }));
         throw error;
       }),
     );
