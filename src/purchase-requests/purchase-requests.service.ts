@@ -81,7 +81,14 @@ export class PurchaseRequestsService {
         where,
         // USER_SELECT garante que os dados do solicitante venham junto
         // sem nunca incluir a senha, mesmo numa relação aninhada como esta.
-        include: { items: true, requester: { select: USER_SELECT } },
+        // selectedQuote: o painel do frontend mostra o valor financeiro da
+        // cotação vencedora direto na listagem, sem precisar de uma
+        // requisição por solicitação (N+1) para o detalhe de cada uma.
+        include: {
+          items: true,
+          requester: { select: USER_SELECT },
+          selectedQuote: { include: { supplier: true } },
+        },
       }),
       this.prisma.purchaseRequest.count({ where }),
     ]);

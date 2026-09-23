@@ -5,22 +5,44 @@ import { PrismaService } from '../prisma/prisma.service';
 export class PurchaseRequestsMetricsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getMetrics() {
+  // "from"/"to" opcionais: sem eles, considera todo o histórico. Com eles,
+  // restringe a contagem a solicitações CRIADAS dentro do intervalo — sem
+  // isso, o painel não deixava claro se "2 aguardando aprovação" era de
+  // hoje ou acumulado desde o início do sistema. Quem monta o intervalo
+  // (presets como "últimos 7 dias" ou um range escolhido à mão) é o
+  // frontend; aqui só aplicamos o filtro que vier.
+  async getMetrics(from?: Date, to?: Date) {
+    const createdAtFilter =
+      from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {};
+
     const [statusGroups, approvedRequests, decidedRequests] = await Promise.all(
       [
         this.prisma.purchaseRequest.groupBy({
           by: ['status'],
           _count: { _all: true },
+          where: createdAtFilter,
         }),
         this.prisma.purchaseRequest.findMany({
           where: {
             status: { in: ['APPROVED', 'COMPLETED'] },
             selectedQuoteId: { not: null },
+            ...createdAtFilter,
           },
           select: { selectedQuote: { select: { totalValue: true } } },
         }),
         this.prisma.purchaseRequest.findMany({
-          where: { submittedAt: { not: null }, decidedAt: { not: null } },
+          where: {
+            submittedAt: { not: null },
+            decidedAt: { not: null },
+            ...createdAtFilter,
+          },
           select: { submittedAt: true, decidedAt: true },
         }),
       ],
@@ -46,6 +68,12 @@ export class PurchaseRequestsMetricsService {
           approvalDurationsHours.length
         : null;
 
-    return { countByStatus, totalApprovedValue, averageApprovalTimeHours };
+    return {
+      countByStatus,
+      totalApprovedValue,
+      averageApprovalTimeHours,
+      periodStart: from?.toISOString() ?? null,
+      periodEnd: to?.toISOString() ?? null,
+    };
   }
 }

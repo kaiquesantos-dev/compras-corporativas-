@@ -70,6 +70,10 @@ export interface PurchaseRequest {
   cancelledAt: string | null
   items: PurchaseItem[]
   requester?: { id: number; name: string; email: string }
+  // Só presente na listagem (GET /purchase-requests) quando já existe uma
+  // cotação vencedora selecionada — permite mostrar o valor financeiro
+  // direto na lista/painel sem abrir o detalhe de cada solicitação.
+  selectedQuote?: Quote | null
 }
 
 export interface PurchaseRequestStatusHistoryEntry {
@@ -105,4 +109,8 @@ export interface PurchaseMetrics {
   countByStatus: Partial<Record<PurchaseRequestStatus, number>>
   totalApprovedValue: number
   averageApprovalTimeHours: number | null
+  // Datas do período considerado; null quando não há limite naquela ponta
+  // (ex: periodStart null + periodEnd definido = "até tal data", sem piso).
+  periodStart: string | null
+  periodEnd: string | null
 }

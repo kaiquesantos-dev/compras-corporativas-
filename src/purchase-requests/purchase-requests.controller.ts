@@ -25,6 +25,7 @@ import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { CreatePurchaseRequestDto } from './dto/create-purchase-request.dto';
 import { UpdatePurchaseRequestDto } from './dto/update-purchase-request.dto';
 import { PurchaseRequestQueryDto } from './dto/purchase-request-query.dto';
+import { PurchaseMetricsQueryDto } from './dto/purchase-metrics-query.dto';
 import { PurchaseRequestsService } from './purchase-requests.service';
 import { PurchaseRequestsMetricsService } from './purchase-requests-metrics.service';
 
@@ -85,10 +86,15 @@ export class PurchaseRequestsController {
   @ApiOperation({
     summary: 'Indicadores de compras',
     description:
-      '**Papéis permitidos:** BUYER, APPROVER, ADMIN\n\nContagem de solicitações por status, valor total aprovado e tempo médio de aprovação (em horas).',
+      '**Papéis permitidos:** BUYER, APPROVER, ADMIN\n\nContagem de solicitações por status, valor total aprovado e tempo médio de aprovação (em horas). Aceita "from"/"to" para restringir o período às solicitações criadas nesse intervalo.',
   })
-  metrics() {
-    return this.metricsService.getMetrics();
+  metrics(@Query() query: PurchaseMetricsQueryDto) {
+    const from = query.from ? new Date(query.from) : undefined;
+    // "to" chega como uma data pura (ex: "2026-08-31"), que o JS interpreta
+    // como meia-noite — sem levar até o fim do dia, o próprio dia final
+    // ficaria de fora do filtro (23:59:59 daquele dia é "depois" da meia-noite).
+    const to = query.to ? new Date(`${query.to.slice(0, 10)}T23:59:59.999Z`) : undefined;
+    return this.metricsService.getMetrics(from, to);
   }
 
   @Get(':id')

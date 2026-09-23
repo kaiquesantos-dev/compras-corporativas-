@@ -45,4 +45,48 @@ describe('PurchaseRequestsMetricsService', () => {
 
     expect(result.averageApprovalTimeHours).toBeNull();
   });
+
+  it('filters by createdAt and returns periodStart/periodEnd when "from"/"to" are provided', async () => {
+    prisma.purchaseRequest.groupBy.mockResolvedValue([]);
+    prisma.purchaseRequest.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const from = new Date('2026-08-01T00:00:00.000Z');
+    const to = new Date('2026-08-31T23:59:59.999Z');
+    const result = await service.getMetrics(from, to);
+
+    const groupByWhere = prisma.purchaseRequest.groupBy.mock.calls[0][0].where;
+    expect(groupByWhere.createdAt).toEqual({ gte: from, lte: to });
+    expect(result.periodStart).toBe(from.toISOString());
+    expect(result.periodEnd).toBe(to.toISOString());
+  });
+
+  it('filters with only "from" (open-ended range)', async () => {
+    prisma.purchaseRequest.groupBy.mockResolvedValue([]);
+    prisma.purchaseRequest.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const from = new Date('2026-08-01T00:00:00.000Z');
+    const result = await service.getMetrics(from);
+
+    const groupByWhere = prisma.purchaseRequest.groupBy.mock.calls[0][0].where;
+    expect(groupByWhere.createdAt).toEqual({ gte: from });
+    expect(result.periodStart).toBe(from.toISOString());
+    expect(result.periodEnd).toBeNull();
+  });
+
+  it('returns periodStart/periodEnd null when no filter is given', async () => {
+    prisma.purchaseRequest.groupBy.mockResolvedValue([]);
+    prisma.purchaseRequest.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await service.getMetrics();
+
+    expect(result.periodStart).toBeNull();
+    expect(result.periodEnd).toBeNull();
+    expect(prisma.purchaseRequest.groupBy.mock.calls[0][0].where).toEqual({});
+  });
 });

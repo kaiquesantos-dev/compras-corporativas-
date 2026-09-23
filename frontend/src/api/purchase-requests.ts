@@ -23,8 +23,10 @@ export async function fetchPurchaseRequest(id: number): Promise<PurchaseRequest>
   return data
 }
 
-export async function fetchPurchaseMetrics(): Promise<PurchaseMetrics> {
-  const { data } = await apiClient.get<PurchaseMetrics>('/purchase-requests/metrics')
+export async function fetchPurchaseMetrics(range?: { from?: string; to?: string }): Promise<PurchaseMetrics> {
+  const { data } = await apiClient.get<PurchaseMetrics>('/purchase-requests/metrics', {
+    params: range,
+  })
   return data
 }
 

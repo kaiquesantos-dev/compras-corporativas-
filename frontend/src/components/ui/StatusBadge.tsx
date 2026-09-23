@@ -1,16 +1,6 @@
 import { cn } from '../../lib/cn'
+import { statusLabels } from '../../lib/status-labels'
 import type { PurchaseRequestStatus } from '../../api/types'
-
-const labels: Record<PurchaseRequestStatus, string> = {
-  DRAFT: 'Rascunho',
-  SUBMITTED: 'Submetida',
-  IN_QUOTATION: 'Em cotação',
-  PENDING_APPROVAL: 'Aguardando aprovação',
-  APPROVED: 'Aprovada',
-  REJECTED: 'Rejeitada',
-  COMPLETED: 'Concluída',
-  CANCELLED: 'Cancelada',
-}
 
 // Cores por status: neutro para estados de rascunho/andamento, accent (red)
 // para o que precisa de atenção, verde/vermelho fora da paleta da marca só
@@ -36,7 +26,7 @@ export function StatusBadge({ status }: { status: PurchaseRequestStatus }) {
         styles[status],
       )}
     >
-      {labels[status]}
+      {statusLabels[status]}
     </span>
   )
 }
