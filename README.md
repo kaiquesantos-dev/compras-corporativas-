@@ -133,12 +133,11 @@ Todos com senha `senha123`.
 | Papel | Email |
 |---|---|
 | ADMIN | `admin@compras.com` |
-| BUYER | `comprador@compras.com` |
-| APPROVER | `aprovador@compras.com` |
-| REQUESTER | `solicitante@compras.com` |
-| REQUESTER (2º) | `solicitante2@compras.com` |
+| BUYER | `comprador@compras.com` / `comprador2@compras.com` |
+| APPROVER | `aprovador@compras.com` / `aprovador2@compras.com` |
+| REQUESTER | `solicitante@compras.com` / `solicitante2@compras.com` / `solicitante3@compras.com` / `solicitante4@compras.com` |
 
-O seed também cria 2 fornecedores e 3 solicitações de compra de demonstração, em estágios diferentes do fluxo (`COMPLETED`, `PENDING_APPROVAL`, `DRAFT`) — prontas para uma apresentação ao vivo.
+O seed também cria 5 departamentos, 6 fornecedores e 15 solicitações de compra cobrindo **todos os 8 status** do ciclo de vida (3 `DRAFT`, 2 `SUBMITTED`, 2 `IN_QUOTATION`, 2 `PENDING_APPROVAL`, 1 `APPROVED`, 1 `REJECTED`, 2 `COMPLETED`, 2 `CANCELLED`), com datas espalhadas ao longo de ~40 dias para o histórico de status parecer real — prontas para uma apresentação ao vivo.
 
 ## Autenticação e segurança
 
