@@ -78,7 +78,8 @@ export interface Quote {
   totalValue: string
   validUntil: string | null
   notes: string | null
-  status: 'PENDING' | 'SELECTED' | 'DISCARDED'
+  status: 'RECEIVED' | 'SELECTED' | 'DISCARDED'
+  proposalFileName: string | null
   supplier?: Supplier
 }
 

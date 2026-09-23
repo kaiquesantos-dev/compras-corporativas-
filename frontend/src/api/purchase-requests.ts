@@ -49,3 +49,8 @@ export async function cancelPurchaseRequest(id: number): Promise<PurchaseRequest
   const { data } = await apiClient.post<PurchaseRequest>(`/purchase-requests/${id}/cancel`)
   return data
 }
+
+export async function completePurchaseRequest(id: number): Promise<PurchaseRequest> {
+  const { data } = await apiClient.post<PurchaseRequest>(`/purchase-requests/${id}/complete`)
+  return data
+}

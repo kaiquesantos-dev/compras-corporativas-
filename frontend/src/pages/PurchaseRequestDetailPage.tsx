@@ -2,11 +2,13 @@ import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   cancelPurchaseRequest,
+  completePurchaseRequest,
   fetchPurchaseRequest,
   submitPurchaseRequest,
 } from '../api/purchase-requests'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Button } from '../components/ui/Button'
+import { QuotesSection } from '../components/quotes/QuotesSection'
 import { useAuthStore } from '../store/auth-store'
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
@@ -28,16 +30,20 @@ export function PurchaseRequestDetailPage() {
 
   const submitMutation = useMutation({ mutationFn: submitPurchaseRequest, onSuccess: invalidate })
   const cancelMutation = useMutation({ mutationFn: cancelPurchaseRequest, onSuccess: invalidate })
+  const completeMutation = useMutation({ mutationFn: completePurchaseRequest, onSuccess: invalidate })
 
   if (isLoading || !pr) {
     return <p className="text-ink-muted">Carregando...</p>
   }
 
   const isOwner = user?.id === pr.requesterId
+  const isBuyerOrAdmin = user?.role === 'BUYER' || user?.role === 'ADMIN'
   const canSubmit = isOwner && pr.status === 'DRAFT'
   const canCancel =
     (isOwner || user?.role === 'ADMIN') &&
     ['DRAFT', 'SUBMITTED', 'IN_QUOTATION'].includes(pr.status)
+  const canComplete = isBuyerOrAdmin && pr.status === 'APPROVED'
+  const showQuotes = pr.status !== 'DRAFT'
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -82,11 +88,20 @@ export function PurchaseRequestDetailPage() {
         </table>
       </div>
 
-      {(canSubmit || canCancel) && (
+      {showQuotes && (
+        <QuotesSection purchaseRequestId={pr.id} status={pr.status} canManage={isBuyerOrAdmin} />
+      )}
+
+      {(canSubmit || canCancel || canComplete) && (
         <div className="flex gap-3">
           {canSubmit && (
             <Button onClick={() => submitMutation.mutate(pr.id)} disabled={submitMutation.isPending}>
               Submeter para cotação
+            </Button>
+          )}
+          {canComplete && (
+            <Button onClick={() => completeMutation.mutate(pr.id)} disabled={completeMutation.isPending}>
+              {completeMutation.isPending ? 'Concluindo...' : 'Concluir compra'}
             </Button>
           )}
           {canCancel && (
