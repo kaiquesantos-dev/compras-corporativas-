@@ -22,7 +22,7 @@ export function DepartmentsPage() {
   const [editing, setEditing] = useState<Department | 'new' | null>(null)
   const queryClient = useQueryClient()
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['departments'],
     queryFn: () => fetchDepartments(),
   })
@@ -43,6 +43,7 @@ export function DepartmentsPage() {
       </div>
 
       {isLoading && <p className="text-ink-muted">Carregando...</p>}
+      {isError && <p className="text-accent-text">Não foi possível carregar os departamentos.</p>}
 
       {data && (
         <div className="overflow-x-auto rounded-[6px] bg-surface-card shadow-card">

@@ -25,7 +25,7 @@ export function SuppliersPage() {
   const user = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['suppliers', page],
     queryFn: () => fetchSuppliers(page),
   })
@@ -42,6 +42,7 @@ export function SuppliersPage() {
       </div>
 
       {isLoading && <p className="text-ink-muted">Carregando...</p>}
+      {isError && <p className="text-accent-text">Não foi possível carregar os fornecedores.</p>}
 
       {data && (
         <>

@@ -1,5 +1,6 @@
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import {
   cancelPurchaseRequest,
   completePurchaseRequest,
@@ -21,9 +22,10 @@ export function PurchaseRequestDetailPage() {
   const user = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
 
-  const { data: pr, isLoading } = useQuery({
+  const { data: pr, isLoading, isError, error } = useQuery({
     queryKey: ['purchase-request', purchaseRequestId],
     queryFn: () => fetchPurchaseRequest(purchaseRequestId),
+    retry: false,
   })
 
   const invalidate = () =>
@@ -33,8 +35,29 @@ export function PurchaseRequestDetailPage() {
   const cancelMutation = useMutation({ mutationFn: cancelPurchaseRequest, onSuccess: invalidate })
   const completeMutation = useMutation({ mutationFn: completePurchaseRequest, onSuccess: invalidate })
 
-  if (isLoading || !pr) {
+  if (isLoading) {
     return <p className="text-ink-muted">Carregando...</p>
+  }
+
+  // Sem isso, uma query que falha (404 solicitação inexistente, 403 sem
+  // acesso) deixava isLoading em false mas pr continuava undefined — a
+  // página ficava travada em "Carregando..." para sempre.
+  if (isError || !pr) {
+    const status = isAxiosError(error) ? error.response?.status : undefined
+    const message =
+      status === 404
+        ? 'Solicitação não encontrada.'
+        : status === 403
+          ? 'Você não tem acesso a esta solicitação.'
+          : 'Não foi possível carregar esta solicitação.'
+    return (
+      <div>
+        <p className="text-accent-text">{message}</p>
+        <Link to="/purchase-requests" className="mt-4 inline-block text-sm font-semibold text-accent-text uppercase hover:underline">
+          Voltar para solicitações
+        </Link>
+      </div>
+    )
   }
 
   const isOwner = user?.id === pr.requesterId

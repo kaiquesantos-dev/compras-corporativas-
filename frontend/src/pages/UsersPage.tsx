@@ -27,7 +27,10 @@ export function UsersPage() {
   const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
 
-  const { data, isLoading } = useQuery({ queryKey: ['users', page], queryFn: () => fetchUsers(page) })
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['users', page],
+    queryFn: () => fetchUsers(page),
+  })
   const { data: departments } = useQuery({
     queryKey: ['departments'],
     queryFn: () => fetchDepartments(),
@@ -45,6 +48,7 @@ export function UsersPage() {
       </div>
 
       {isLoading && <p className="text-ink-muted">Carregando...</p>}
+      {isError && <p className="text-accent-text">Não foi possível carregar os usuários.</p>}
 
       {data && (
         <>

@@ -20,7 +20,7 @@ export function DashboardPage() {
   const user = useAuthStore((state) => state.user)
   const canSeeMetrics = user?.role === 'BUYER' || user?.role === 'APPROVER' || user?.role === 'ADMIN'
 
-  const { data: metrics, isLoading } = useQuery({
+  const { data: metrics, isLoading, isError } = useQuery({
     queryKey: ['purchase-metrics'],
     queryFn: fetchPurchaseMetrics,
     enabled: canSeeMetrics,
@@ -37,6 +37,7 @@ export function DashboardPage() {
       )}
 
       {canSeeMetrics && isLoading && <p className="text-ink-muted">Carregando indicadores...</p>}
+      {canSeeMetrics && isError && <p className="text-accent-text">Não foi possível carregar os indicadores.</p>}
 
       {canSeeMetrics && metrics && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
