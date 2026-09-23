@@ -20,7 +20,7 @@ export function PurchaseRequestsListPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="font-sans text-3xl font-bold text-accent italic">_Solicitações</h1>
         {user?.role === 'REQUESTER' && (
           <Link to="/purchase-requests/new">

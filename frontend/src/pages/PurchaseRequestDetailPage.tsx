@@ -28,8 +28,14 @@ export function PurchaseRequestDetailPage() {
     retry: false,
   })
 
-  const invalidate = () =>
+  // Sem invalidar o histórico aqui, ele so ficava atualizado depois de um
+  // reload manual da pagina: submit/cancel/complete mudam o status (e por
+  // tabela geram uma nova linha no historico), mas a query do historico
+  // e independente da query da solicitacao e nao era avisada da mudanca.
+  const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['purchase-request', purchaseRequestId] })
+    queryClient.invalidateQueries({ queryKey: ['purchase-request-history', purchaseRequestId] })
+  }
 
   const submitMutation = useMutation({ mutationFn: submitPurchaseRequest, onSuccess: invalidate })
   const cancelMutation = useMutation({ mutationFn: cancelPurchaseRequest, onSuccess: invalidate })

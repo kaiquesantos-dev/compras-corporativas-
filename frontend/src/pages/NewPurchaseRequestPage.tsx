@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { createPurchaseRequest, type CreatePurchaseRequestInput } from '../api/purchase-requests'
 import { Button } from '../components/ui/Button'
@@ -16,6 +17,7 @@ export function NewPurchaseRequestPage() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   function updateItem(index: number, patch: Partial<ItemDraft>) {
     setItems((current) => current.map((item, i) => (i === index ? { ...item, ...patch } : item)))
@@ -35,6 +37,11 @@ export function NewPurchaseRequestPage() {
     setSubmitting(true)
     try {
       const created = await createPurchaseRequest({ title, justification, items })
+      // Sem isso, voltar para a listagem logo em seguida podia mostrar dados
+      // desatualizados (sem a solicitação recem-criada) ate o cache expirar
+      // sozinho — nao falhava sempre, so dependia de quanto tempo tinha
+      // passado desde a ultima vez que a lista foi carregada.
+      queryClient.invalidateQueries({ queryKey: ['purchase-requests'] })
       navigate(`/purchase-requests/${created.id}`, { replace: true })
     } catch (err) {
       const message = isAxiosError(err)

@@ -27,7 +27,14 @@ export function ApprovalsPage() {
   const decideMutation = useMutation({
     mutationFn: (input: { id: number; decision: 'APPROVED' | 'REJECTED' }) =>
       decideApproval(input.id, input.decision, comments[input.id]),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['purchase-requests'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-requests'] })
+      // Sem isso, quem decidiu aqui e depois abre a tela de detalhe da
+      // mesma solicitação (via cache do React Query) via ainda o status e o
+      // historico antigos, ate expirar o cache ou dar reload manual.
+      queryClient.invalidateQueries({ queryKey: ['purchase-request'] })
+      queryClient.invalidateQueries({ queryKey: ['purchase-request-history'] })
+    },
   })
 
   return (

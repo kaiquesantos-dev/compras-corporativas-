@@ -47,6 +47,10 @@ export function QuotesSection({
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['quotes', purchaseRequestId] })
     queryClient.invalidateQueries({ queryKey: ['purchase-request', purchaseRequestId] })
+    // Selecionar a cotação vencedora também move o status (IN_QUOTATION ->
+    // PENDING_APPROVAL) e gera uma linha no histórico — sem isso, o
+    // "Histórico de status" só refletia a mudança depois de um reload manual.
+    queryClient.invalidateQueries({ queryKey: ['purchase-request-history', purchaseRequestId] })
   }
 
   const canAddQuote = canManage && (status === 'SUBMITTED' || status === 'IN_QUOTATION')
@@ -145,7 +149,11 @@ function QuoteRow({
           </p>
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-3">
+      {/* flex-wrap sem shrink-0: em telas estreitas, "Anexar proposta" e o
+          botão "Selecionar vencedora" juntos podem ser mais largos que o
+          espaço restante do card — sem wrap eles estouravam para fora do
+          card em vez de quebrar para uma nova linha. */}
+      <div className="flex flex-wrap items-center gap-3">
         {quote.proposalFileName ? (
           <button
             onClick={() => downloadQuoteProposal(purchaseRequestId, quote.id, quote.proposalFileName!)}
