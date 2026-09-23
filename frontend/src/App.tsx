@@ -4,7 +4,10 @@ import { DashboardPage } from './pages/DashboardPage'
 import { PurchaseRequestsListPage } from './pages/PurchaseRequestsListPage'
 import { NewPurchaseRequestPage } from './pages/NewPurchaseRequestPage'
 import { PurchaseRequestDetailPage } from './pages/PurchaseRequestDetailPage'
-import { ComingSoonPage } from './pages/ComingSoonPage'
+import { SuppliersPage } from './pages/SuppliersPage'
+import { ApprovalsPage } from './pages/ApprovalsPage'
+import { UsersPage } from './pages/UsersPage'
+import { DepartmentsPage } from './pages/DepartmentsPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 
 export function App() {
@@ -49,7 +52,7 @@ export function App() {
           path="/suppliers"
           element={
             <ProtectedRoute roles={['BUYER', 'ADMIN']}>
-              <ComingSoonPage title="Fornecedores" />
+              <SuppliersPage />
             </ProtectedRoute>
           }
         />
@@ -57,7 +60,7 @@ export function App() {
           path="/approvals"
           element={
             <ProtectedRoute roles={['APPROVER', 'ADMIN']}>
-              <ComingSoonPage title="Aprovações" />
+              <ApprovalsPage />
             </ProtectedRoute>
           }
         />
@@ -65,7 +68,7 @@ export function App() {
           path="/users"
           element={
             <ProtectedRoute roles={['ADMIN']}>
-              <ComingSoonPage title="Usuários" />
+              <UsersPage />
             </ProtectedRoute>
           }
         />
@@ -73,7 +76,7 @@ export function App() {
           path="/departments"
           element={
             <ProtectedRoute roles={['ADMIN']}>
-              <ComingSoonPage title="Departamentos" />
+              <DepartmentsPage />
             </ProtectedRoute>
           }
         />
