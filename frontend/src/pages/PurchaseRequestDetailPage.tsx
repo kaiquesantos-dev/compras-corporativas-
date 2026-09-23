@@ -9,6 +9,7 @@ import {
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Button } from '../components/ui/Button'
 import { QuotesSection } from '../components/quotes/QuotesSection'
+import { StatusHistory } from '../components/purchase-requests/StatusHistory'
 import { useAuthStore } from '../store/auth-store'
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
@@ -91,6 +92,8 @@ export function PurchaseRequestDetailPage() {
       {showQuotes && (
         <QuotesSection purchaseRequestId={pr.id} status={pr.status} canManage={isBuyerOrAdmin} />
       )}
+
+      <StatusHistory purchaseRequestId={pr.id} />
 
       {(canSubmit || canCancel || canComplete) && (
         <div className="flex gap-3">

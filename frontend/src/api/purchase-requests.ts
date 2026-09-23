@@ -1,5 +1,11 @@
 import { apiClient } from './client'
-import type { Paginated, PurchaseMetrics, PurchaseRequest, PurchaseRequestStatus } from './types'
+import type {
+  Paginated,
+  PurchaseMetrics,
+  PurchaseRequest,
+  PurchaseRequestStatus,
+  PurchaseRequestStatusHistoryEntry,
+} from './types'
 
 export async function fetchPurchaseRequests(params: {
   page?: number
@@ -52,5 +58,14 @@ export async function cancelPurchaseRequest(id: number): Promise<PurchaseRequest
 
 export async function completePurchaseRequest(id: number): Promise<PurchaseRequest> {
   const { data } = await apiClient.post<PurchaseRequest>(`/purchase-requests/${id}/complete`)
+  return data
+}
+
+export async function fetchPurchaseRequestHistory(
+  id: number,
+): Promise<PurchaseRequestStatusHistoryEntry[]> {
+  const { data } = await apiClient.get<PurchaseRequestStatusHistoryEntry[]>(
+    `/purchase-requests/${id}/history`,
+  )
   return data
 }

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { fetchPurchaseRequests } from '../api/purchase-requests'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Button } from '../components/ui/Button'
+import { Pagination } from '../components/ui/Pagination'
 import { useAuthStore } from '../store/auth-store'
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' })
@@ -16,8 +17,6 @@ export function PurchaseRequestsListPage() {
     queryKey: ['purchase-requests', page],
     queryFn: () => fetchPurchaseRequests({ page, pageSize: 20 }),
   })
-
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
 
   return (
     <div>
@@ -71,19 +70,7 @@ export function PurchaseRequestsListPage() {
             </table>
           </div>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-ink-muted">
-            <span>
-              Página {data.page} de {totalPages} · {data.total} solicitações
-            </span>
-            <div className="flex gap-2">
-              <Button variant="ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Anterior
-              </Button>
-              <Button variant="ghost" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Próxima
-              </Button>
-            </div>
-          </div>
+          <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onPageChange={setPage} />
         </>
       )}
     </div>

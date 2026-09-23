@@ -8,6 +8,7 @@ import { SuppliersPage } from './pages/SuppliersPage'
 import { ApprovalsPage } from './pages/ApprovalsPage'
 import { UsersPage } from './pages/UsersPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
+import { NotFoundPage } from './pages/NotFoundPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 
 export function App() {
@@ -80,6 +81,8 @@ export function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   )

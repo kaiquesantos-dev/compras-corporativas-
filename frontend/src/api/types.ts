@@ -72,6 +72,15 @@ export interface PurchaseRequest {
   requester?: { id: number; name: string; email: string }
 }
 
+export interface PurchaseRequestStatusHistoryEntry {
+  id: number
+  fromStatus: PurchaseRequestStatus | null
+  toStatus: PurchaseRequestStatus
+  changedByUserId: number
+  changedAt: string
+  note: string | null
+}
+
 export interface Quote {
   id: number
   supplierId: number

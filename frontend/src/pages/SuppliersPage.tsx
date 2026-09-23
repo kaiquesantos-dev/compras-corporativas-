@@ -11,6 +11,7 @@ import { useAuthStore } from '../store/auth-store'
 import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
 import { Modal } from '../components/ui/Modal'
+import { Pagination } from '../components/ui/Pagination'
 
 function errorMessage(err: unknown, fallback: string): string {
   if (!isAxiosError(err)) return fallback
@@ -20,10 +21,14 @@ function errorMessage(err: unknown, fallback: string): string {
 
 export function SuppliersPage() {
   const [creating, setCreating] = useState(false)
+  const [page, setPage] = useState(1)
   const user = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
 
-  const { data, isLoading } = useQuery({ queryKey: ['suppliers'], queryFn: () => fetchSuppliers() })
+  const { data, isLoading } = useQuery({
+    queryKey: ['suppliers', page],
+    queryFn: () => fetchSuppliers(page),
+  })
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['suppliers'] })
   const createMutation = useMutation({ mutationFn: createSupplier, onSuccess: invalidate })
@@ -39,54 +44,57 @@ export function SuppliersPage() {
       {isLoading && <p className="text-ink-muted">Carregando...</p>}
 
       {data && (
-        <div className="overflow-hidden rounded-[6px] bg-surface-card shadow-card">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-grey1 text-xs font-semibold text-ink-muted uppercase">
-              <tr>
-                <th className="px-4 py-3">Razão social</th>
-                <th className="px-4 py-3">CNPJ</th>
-                <th className="px-4 py-3">Cidade/UF</th>
-                <th className="px-4 py-3">Status</th>
-                {user?.role === 'ADMIN' && <th className="px-4 py-3" />}
-              </tr>
-            </thead>
-            <tbody>
-              {data.data.map((supplier) => (
-                <tr key={supplier.id} className="border-t border-grey1">
-                  <td className="px-4 py-3 text-ink">{supplier.legalName}</td>
-                  <td className="px-4 py-3 text-ink-muted">{supplier.document}</td>
-                  <td className="px-4 py-3 text-ink-muted">
-                    {supplier.city ? `${supplier.city}/${supplier.state}` : '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={supplier.isActive ? 'text-emerald-700' : 'text-ink-muted'}>
-                      {supplier.isActive ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  {user?.role === 'ADMIN' && (
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => {
-                          if (confirm(`Remover "${supplier.legalName}"?`)) deleteMutation.mutate(supplier.id)
-                        }}
-                        className="text-xs font-semibold text-accent-text uppercase"
-                      >
-                        Remover
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {data.data.length === 0 && (
+        <>
+          <div className="overflow-hidden rounded-[6px] bg-surface-card shadow-card">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-grey1 text-xs font-semibold text-ink-muted uppercase">
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-ink-muted">
-                    Nenhum fornecedor cadastrado.
-                  </td>
+                  <th className="px-4 py-3">Razão social</th>
+                  <th className="px-4 py-3">CNPJ</th>
+                  <th className="px-4 py-3">Cidade/UF</th>
+                  <th className="px-4 py-3">Status</th>
+                  {user?.role === 'ADMIN' && <th className="px-4 py-3" />}
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {data.data.map((supplier) => (
+                  <tr key={supplier.id} className="border-t border-grey1">
+                    <td className="px-4 py-3 text-ink">{supplier.legalName}</td>
+                    <td className="px-4 py-3 text-ink-muted">{supplier.document}</td>
+                    <td className="px-4 py-3 text-ink-muted">
+                      {supplier.city ? `${supplier.city}/${supplier.state}` : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={supplier.isActive ? 'text-emerald-700' : 'text-ink-muted'}>
+                        {supplier.isActive ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </td>
+                    {user?.role === 'ADMIN' && (
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => {
+                            if (confirm(`Remover "${supplier.legalName}"?`)) deleteMutation.mutate(supplier.id)
+                          }}
+                          className="text-xs font-semibold text-accent-text uppercase"
+                        >
+                          Remover
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {data.data.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-ink-muted">
+                      Nenhum fornecedor cadastrado.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onPageChange={setPage} />
+        </>
       )}
 
       {creating && (

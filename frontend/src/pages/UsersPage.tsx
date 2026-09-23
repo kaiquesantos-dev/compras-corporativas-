@@ -7,6 +7,7 @@ import type { Role } from '../api/types'
 import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
 import { Modal } from '../components/ui/Modal'
+import { Pagination } from '../components/ui/Pagination'
 
 const roleLabels: Record<Role, string> = {
   REQUESTER: 'Solicitante',
@@ -23,9 +24,10 @@ function errorMessage(err: unknown, fallback: string): string {
 
 export function UsersPage() {
   const [creating, setCreating] = useState(false)
+  const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
 
-  const { data, isLoading } = useQuery({ queryKey: ['users'], queryFn: () => fetchUsers() })
+  const { data, isLoading } = useQuery({ queryKey: ['users', page], queryFn: () => fetchUsers(page) })
   const { data: departments } = useQuery({
     queryKey: ['departments'],
     queryFn: () => fetchDepartments(),
@@ -45,37 +47,40 @@ export function UsersPage() {
       {isLoading && <p className="text-ink-muted">Carregando...</p>}
 
       {data && (
-        <div className="overflow-hidden rounded-[6px] bg-surface-card shadow-card">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-grey1 text-xs font-semibold text-ink-muted uppercase">
-              <tr>
-                <th className="px-4 py-3">Nome</th>
-                <th className="px-4 py-3">E-mail</th>
-                <th className="px-4 py-3">Papel</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {data.data.map((user) => (
-                <tr key={user.id} className="border-t border-grey1">
-                  <td className="px-4 py-3 text-ink">{user.name}</td>
-                  <td className="px-4 py-3 text-ink-muted">{user.email}</td>
-                  <td className="px-4 py-3 text-ink-muted">{roleLabels[user.role]}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => {
-                        if (confirm(`Remover "${user.name}"?`)) deleteMutation.mutate(user.id)
-                      }}
-                      className="text-xs font-semibold text-accent-text uppercase"
-                    >
-                      Remover
-                    </button>
-                  </td>
+        <>
+          <div className="overflow-hidden rounded-[6px] bg-surface-card shadow-card">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-grey1 text-xs font-semibold text-ink-muted uppercase">
+                <tr>
+                  <th className="px-4 py-3">Nome</th>
+                  <th className="px-4 py-3">E-mail</th>
+                  <th className="px-4 py-3">Papel</th>
+                  <th className="px-4 py-3" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {data.data.map((user) => (
+                  <tr key={user.id} className="border-t border-grey1">
+                    <td className="px-4 py-3 text-ink">{user.name}</td>
+                    <td className="px-4 py-3 text-ink-muted">{user.email}</td>
+                    <td className="px-4 py-3 text-ink-muted">{roleLabels[user.role]}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => {
+                          if (confirm(`Remover "${user.name}"?`)) deleteMutation.mutate(user.id)
+                        }}
+                        className="text-xs font-semibold text-accent-text uppercase"
+                      >
+                        Remover
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onPageChange={setPage} />
+        </>
       )}
 
       {creating && (
