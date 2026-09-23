@@ -55,9 +55,9 @@ export function DepartmentsPage() {
             </thead>
             <tbody>
               {data.data.map((dept) => (
-                <tr key={dept.id} className="border-t border-grey1">
+                <tr key={dept.id} className="border-t border-grey1 align-top">
                   <td className="px-4 py-3 text-ink">{dept.name}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
                     <button
                       onClick={() => setEditing(dept)}
                       className="mr-4 text-xs font-semibold text-ink-muted uppercase hover:text-accent-text"

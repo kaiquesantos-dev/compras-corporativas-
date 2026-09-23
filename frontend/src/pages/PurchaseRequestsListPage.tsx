@@ -46,17 +46,17 @@ export function PurchaseRequestsListPage() {
               </thead>
               <tbody>
                 {data.data.map((pr) => (
-                  <tr key={pr.id} className="border-t border-grey1 hover:bg-surface-muted">
+                  <tr key={pr.id} className="border-t border-grey1 align-top hover:bg-surface-muted">
                     <td className="px-4 py-3">
                       <Link to={`/purchase-requests/${pr.id}`} className="font-semibold text-ink hover:text-accent">
                         {pr.title}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-ink-muted">{pr.requester?.name ?? '—'}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap text-ink-muted">{pr.requester?.name ?? '—'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <StatusBadge status={pr.status} />
                     </td>
-                    <td className="px-4 py-3 text-ink-muted">{dateFormatter.format(new Date(pr.createdAt))}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-ink-muted">{dateFormatter.format(new Date(pr.createdAt))}</td>
                   </tr>
                 ))}
                 {data.data.length === 0 && (

@@ -76,11 +76,11 @@ export function PurchaseRequestDetailPage() {
           </thead>
           <tbody>
             {pr.items.map((item) => (
-              <tr key={item.id} className="border-t border-grey1">
+              <tr key={item.id} className="border-t border-grey1 align-top">
                 <td className="px-4 py-3">{item.description}</td>
-                <td className="px-4 py-3">{item.quantity}</td>
-                <td className="px-4 py-3">{item.unit}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 whitespace-nowrap">{item.quantity}</td>
+                <td className="px-4 py-3 whitespace-nowrap">{item.unit}</td>
+                <td className="px-4 py-3 whitespace-nowrap">
                   {item.estimatedUnitPrice ? currencyFormatter.format(Number(item.estimatedUnitPrice)) : '—'}
                 </td>
               </tr>

@@ -60,11 +60,11 @@ export function UsersPage() {
               </thead>
               <tbody>
                 {data.data.map((user) => (
-                  <tr key={user.id} className="border-t border-grey1">
+                  <tr key={user.id} className="border-t border-grey1 align-top">
                     <td className="px-4 py-3 text-ink">{user.name}</td>
                     <td className="px-4 py-3 text-ink-muted">{user.email}</td>
-                    <td className="px-4 py-3 text-ink-muted">{roleLabels[user.role]}</td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 whitespace-nowrap text-ink-muted">{roleLabels[user.role]}</td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
                       <button
                         onClick={() => {
                           if (confirm(`Remover "${user.name}"?`)) deleteMutation.mutate(user.id)
