@@ -1,0 +1,68 @@
+@import 'tailwindcss';
+
+/* Fonte da marca IT Lean: uma família variável só, com itálico como
+   assinatura visual (usada em títulos por toda a aplicação). */
+@font-face {
+  font-family: 'Exo';
+  src: url('/fonts/Exo-Variable.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Exo';
+  src: url('/fonts/Exo-Italic-Variable.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Tokens extraídos do design system IT Lean (itlean.com.br). Mantemos os
+   nomes do design system para que qualquer pessoa que compare com o
+   Figma/README do design system reconheça os valores na hora. */
+@theme {
+  --font-sans: 'Exo', 'Segoe UI', system-ui, sans-serif;
+
+  --color-red: #d22730;
+  --color-white: #ffffff;
+  --color-darkblack: #14181a;
+  --color-darkblue: #354255;
+  --color-slate: #596474;
+  --color-navy: #062033;
+  --color-graphite: #2c2f32;
+  --color-grey1: #e9eef2;
+  --color-grey2: #cbcccb;
+  --color-grey6: #adadad;
+  --color-offwhite: #fafafa;
+
+  /* Papéis semânticos (tema claro — é o único tema desta aplicação interna;
+     o tema escuro do design system é específico do rodapé do site). */
+  --color-surface: var(--color-white);
+  --color-surface-muted: var(--color-grey1);
+  --color-surface-card: var(--color-white);
+  --color-surface-inverse: var(--color-darkblack);
+  --color-ink: var(--color-darkblue);
+  --color-ink-muted: var(--color-slate);
+  --color-ink-inverse: var(--color-white);
+  --color-accent: var(--color-red);
+  --color-accent-text: var(--color-red);
+  --color-on-accent: var(--color-white);
+  --color-border: var(--color-grey2);
+
+  --radius-5: 5px;
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-15: 15px;
+  --radius-22: 22px;
+  --radius-32: 32px;
+
+  --shadow-card: 0 2px 8px 0 rgba(0, 0, 0, 0.1);
+  --shadow-panel: 0 3px 10px 0 rgba(0, 0, 0, 0.16);
+  --shadow-header: 0px 2px 16px #0000001a;
+}
+
+body {
+  background-color: var(--color-surface-muted);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}

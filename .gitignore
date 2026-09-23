@@ -10,3 +10,4 @@ src/generated/
 /prisma.config.js
 /prisma.config.d.ts
 /prisma.config.js.map
+.claude/settings.local.json
