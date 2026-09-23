@@ -64,12 +64,16 @@ export function NewPurchaseRequestPage() {
           <p className="mb-2 text-xs font-semibold tracking-wide text-ink-muted uppercase">Itens</p>
           <div className="flex flex-col gap-4">
             {items.map((item, index) => (
-              <div key={index} className="grid grid-cols-[1fr_100px_100px_auto] gap-2">
+              <div
+                key={index}
+                className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_100px_100px_auto] sm:items-center"
+              >
                 <TextField
                   label="Descrição"
                   value={item.description}
                   onChange={(e) => updateItem(index, { description: e.target.value })}
                   required
+                  className="col-span-2 sm:col-span-1"
                 />
                 <TextField
                   label="Qtd."
@@ -89,7 +93,7 @@ export function NewPurchaseRequestPage() {
                   type="button"
                   onClick={() => removeItem(index)}
                   disabled={items.length === 1}
-                  className="self-center text-xs font-semibold text-accent-text uppercase disabled:opacity-30"
+                  className="col-span-2 text-xs font-semibold text-accent-text uppercase disabled:opacity-30 sm:col-span-1 sm:self-center"
                 >
                   Remover
                 </button>

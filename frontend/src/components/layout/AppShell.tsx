@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/auth-store'
 import { cn } from '../../lib/cn'
@@ -33,6 +33,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
   const navigate = useNavigate()
+  // Sidebar fixa a partir do breakpoint md; abaixo disso vira um drawer que
+  // começa fechado — numa tela de celular (~375px) uma sidebar de 256px
+  // sozinha já ocupa 2/3 da largura e deixa o conteúdo ilegível.
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const visibleItems = NAV_ITEMS.filter((item) => user && item.roles.includes(user.role))
 
@@ -42,21 +46,48 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen md:flex">
+      {/* Barra superior só em mobile/tablet: logo + botão de abrir o menu. */}
+      <div className="flex items-center justify-between bg-surface-inverse px-4 py-3 md:hidden">
+        <img src="/brand/itlean-logo-white.svg" alt="IT Lean" className="h-5 w-auto" />
+        <button
+          onClick={() => setMenuOpen(true)}
+          aria-label="Abrir menu"
+          className="text-2xl leading-none text-white"
+        >
+          ☰
+        </button>
+      </div>
+
+      {/* Overlay escuro atrás do drawer, só quando aberto em telas pequenas. */}
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar escura — adaptação do Footer do design system (surface
           inverse / darkblack) para navegação de aplicação em vez de rodapé
-          de site institucional. */}
-      <aside className="flex w-64 shrink-0 flex-col bg-surface-inverse text-ink-inverse">
-        <div className="px-6 py-6">
+          de site institucional. Fixa em desktop; drawer deslizante abaixo
+          do breakpoint md. */}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col bg-surface-inverse text-ink-inverse transition-transform duration-200 ease-in-out md:static md:translate-x-0',
+          menuOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
+        <div className="hidden px-6 py-6 md:block">
           <img src="/brand/itlean-logo-white.svg" alt="IT Lean" className="h-6 w-auto" />
           <p className="mt-1 text-xs tracking-wide text-grey6 uppercase">Compras Corporativas</p>
         </div>
-        <nav className="flex-1 px-3">
+        <nav className="flex-1 px-3 pt-6 md:pt-0">
           {visibleItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.to === '/'}
+              onClick={() => setMenuOpen(false)}
               className={({ isActive }) =>
                 cn(
                   'mb-1 block rounded-[6px] px-3 py-2.5 text-sm font-semibold uppercase transition-colors',
@@ -80,7 +111,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto bg-surface-muted p-8">{children}</main>
+      <main className="min-w-0 flex-1 overflow-y-auto bg-surface-muted p-4 md:p-8">{children}</main>
     </div>
   )
 }

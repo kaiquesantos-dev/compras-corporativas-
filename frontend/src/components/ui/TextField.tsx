@@ -6,6 +6,9 @@ interface BaseProps {
   hint?: string
   error?: string
   multiline?: boolean
+  // Aplicado no wrapper externo (não no <input>) — é o que um grid/flex pai
+  // precisa controlar (ex: col-span) para posicionar o campo inteiro.
+  className?: string
 }
 
 type TextFieldProps = BaseProps &
@@ -14,7 +17,17 @@ type TextFieldProps = BaseProps &
 // Campo com rótulo flutuante (design system: TextField/README.md). O rótulo
 // começa dentro do campo, em ink-muted, e "sobe" para cima em accent-text
 // quando o campo tem foco ou já foi preenchido.
-export function TextField({ label, hint, error, multiline, id, value, defaultValue, ...props }: TextFieldProps) {
+export function TextField({
+  label,
+  hint,
+  error,
+  multiline,
+  className,
+  id,
+  value,
+  defaultValue,
+  ...props
+}: TextFieldProps) {
   const generatedId = useId()
   const fieldId = id ?? generatedId
   const [hasValue, setHasValue] = useState(Boolean(value ?? defaultValue))
@@ -42,7 +55,7 @@ export function TextField({ label, hint, error, multiline, id, value, defaultVal
   }
 
   return (
-    <div className="relative">
+    <div className={cn('relative', className)}>
       <div className="relative">
         {multiline ? (
           <textarea

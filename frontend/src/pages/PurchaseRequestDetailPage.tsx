@@ -64,7 +64,7 @@ export function PurchaseRequestDetailPage() {
         <p className="text-ink">{pr.justification}</p>
       </div>
 
-      <div className="mb-6 overflow-hidden rounded-[6px] bg-surface-card shadow-card">
+      <div className="mb-6 overflow-x-auto rounded-[6px] bg-surface-card shadow-card">
         <table className="w-full text-left text-sm">
           <thead className="bg-grey1 text-xs font-semibold text-ink-muted uppercase">
             <tr>

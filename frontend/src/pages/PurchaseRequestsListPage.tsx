@@ -34,7 +34,7 @@ export function PurchaseRequestsListPage() {
 
       {data && (
         <>
-          <div className="overflow-hidden rounded-[6px] bg-surface-card shadow-card">
+          <div className="overflow-x-auto rounded-[6px] bg-surface-card shadow-card">
             <table className="w-full text-left text-sm">
               <thead className="bg-grey1 text-xs font-semibold text-ink-muted uppercase">
                 <tr>

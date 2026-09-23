@@ -45,7 +45,7 @@ export function SuppliersPage() {
 
       {data && (
         <>
-          <div className="overflow-hidden rounded-[6px] bg-surface-card shadow-card">
+          <div className="overflow-x-auto rounded-[6px] bg-surface-card shadow-card">
             <table className="w-full text-left text-sm">
               <thead className="bg-grey1 text-xs font-semibold text-ink-muted uppercase">
                 <tr>
@@ -58,19 +58,22 @@ export function SuppliersPage() {
               </thead>
               <tbody>
                 {data.data.map((supplier) => (
-                  <tr key={supplier.id} className="border-t border-grey1">
+                  // align-top: nomes de razão social longos quebram em várias
+                  // linhas — sem isso, as demais células ficam centralizadas
+                  // verticalmente numa linha mais alta e o layout desalinha.
+                  <tr key={supplier.id} className="border-t border-grey1 align-top">
                     <td className="px-4 py-3 text-ink">{supplier.legalName}</td>
-                    <td className="px-4 py-3 text-ink-muted">{supplier.document}</td>
-                    <td className="px-4 py-3 text-ink-muted">
+                    <td className="px-4 py-3 whitespace-nowrap text-ink-muted">{supplier.document}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-ink-muted">
                       {supplier.city ? `${supplier.city}/${supplier.state}` : '—'}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <span className={supplier.isActive ? 'text-emerald-700' : 'text-ink-muted'}>
                         {supplier.isActive ? 'Ativo' : 'Inativo'}
                       </span>
                     </td>
                     {user?.role === 'ADMIN' && (
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
                         <button
                           onClick={() => {
                             if (confirm(`Remover "${supplier.legalName}"?`)) deleteMutation.mutate(supplier.id)

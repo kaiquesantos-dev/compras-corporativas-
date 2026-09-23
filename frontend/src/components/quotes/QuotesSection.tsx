@@ -130,8 +130,11 @@ function QuoteRow({
   }
 
   return (
-    <div className="flex items-center justify-between rounded-[6px] border border-grey1 px-4 py-3">
-      <div>
+    // items-start (não items-center): a razão social pode ser longa o
+    // suficiente para quebrar em duas linhas, e com items-center os botões
+    // à direita ficavam descentralizados em relação ao texto.
+    <div className="flex flex-wrap items-start justify-between gap-3 rounded-[6px] border border-grey1 px-4 py-3">
+      <div className="min-w-0">
         <p className="font-semibold text-ink">{quote.supplier?.legalName ?? `Fornecedor #${quote.supplierId}`}</p>
         <p className="text-sm text-ink-muted">
           {currencyFormatter.format(Number(quote.totalValue))} · {statusLabels[quote.status]}
@@ -142,7 +145,7 @@ function QuoteRow({
           </p>
         )}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         {quote.proposalFileName ? (
           <button
             onClick={() => downloadQuoteProposal(purchaseRequestId, quote.id, quote.proposalFileName!)}
