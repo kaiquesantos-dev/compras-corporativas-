@@ -43,11 +43,22 @@ async function bootstrap() {
   app.use(compression());
 
   // Libera chamadas vindas de outra origem (ex: o frontend React rodando em
-  // localhost:5173 durante o desenvolvimento). Sem isso, o navegador bloqueia
-  // toda requisição do frontend para esta API por política de CORS. Como a
-  // autenticação aqui é via token JWT no header (não cookie de sessão), não
-  // há risco de CSRF em liberar qualquer origem — não usamos "credentials".
-  app.enableCors();
+  // localhost:5173 durante o desenvolvimento) — sem isso, o navegador
+  // bloqueia toda requisição do frontend pra esta API. A autenticação aqui é
+  // via token JWT no header (não cookie de sessão), então não há risco de
+  // CSRF — mas "liberar qualquer origem" (app.enableCors() sem opções, como
+  // era antes) é um problema diferente: qualquer site que consiga obter um
+  // token válido de alguma forma (ex: colado manualmente, ou uma falha de
+  // XSS em outro lugar) conseguiria fazer fetch() autenticado pra esta API
+  // a partir de QUALQUER origem e ler a resposta. Restringimos à lista de
+  // origens configurada em CORS_ORIGIN (o próprio frontend, e mais nada).
+  const corsOrigins = (
+    configService.get<string>('CORS_ORIGIN') ?? 'http://localhost:5173'
+  )
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  app.enableCors({ origin: corsOrigins });
 
   // Faz o Nest escutar os sinais de encerramento do sistema operacional
   // (SIGTERM, enviado por "docker stop"; SIGINT, do Ctrl+C) e chamar os

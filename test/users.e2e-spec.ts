@@ -259,6 +259,93 @@ describe('Users (e2e)', () => {
         .expect(403);
     });
 
+    it('rejects a delegated APPROVER (not a real ADMIN) trying to grant delegation to another APPROVER — prevents an uncontrolled escalation chain', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      const delegate = await seedUserAndLogin(app, prisma, 'APPROVER');
+      const target = await seedUserAndLogin(app, prisma, 'APPROVER');
+      await apiRequest(app)
+        .patch(`/users/${delegate.id}/admin-delegate`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ granted: true })
+        .expect(200);
+
+      // O delegado passa pelo @Roles('ADMIN') do controller (RolesGuard
+      // trata isAdminDelegate como equivalente a ADMIN), mas a checagem
+      // extra dentro do service deve barrá-lo aqui mesmo assim.
+      await apiRequest(app)
+        .patch(`/users/${target.id}/admin-delegate`)
+        .set('Authorization', `Bearer ${delegate.token}`)
+        .send({ granted: true })
+        .expect(403);
+
+      const check = await apiRequest(app)
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${target.token}`)
+        .expect(200);
+      expect(check.body.isAdminDelegate).toBe(false);
+    });
+
+    it('rejects a delegated APPROVER (not a real ADMIN) deleting the real ADMIN account', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      const delegate = await seedUserAndLogin(app, prisma, 'APPROVER');
+      await apiRequest(app)
+        .patch(`/users/${delegate.id}/admin-delegate`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ granted: true })
+        .expect(200);
+
+      await apiRequest(app)
+        .delete(`/users/${admin.id}`)
+        .set('Authorization', `Bearer ${delegate.token}`)
+        .expect(403);
+
+      // O admin real continua existindo e conseguindo logar normalmente.
+      await apiRequest(app)
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${admin.token}`)
+        .expect(200);
+    });
+
+    it('rejects a delegated APPROVER (not a real ADMIN) editing the real ADMIN account', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      const delegate = await seedUserAndLogin(app, prisma, 'APPROVER');
+      await apiRequest(app)
+        .patch(`/users/${delegate.id}/admin-delegate`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ granted: true })
+        .expect(200);
+
+      await apiRequest(app)
+        .patch(`/users/${admin.id}`)
+        .set('Authorization', `Bearer ${delegate.token}`)
+        .send({ name: 'Hackeado' })
+        .expect(403);
+    });
+
+    it('still allows a delegated APPROVER to manage a normal (non-ADMIN) user, and a real ADMIN can still manage other ADMINs', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      const otherAdmin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      const delegate = await seedUserAndLogin(app, prisma, 'APPROVER');
+      const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+      await apiRequest(app)
+        .patch(`/users/${delegate.id}/admin-delegate`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ granted: true })
+        .expect(200);
+
+      await apiRequest(app)
+        .patch(`/users/${requester.id}`)
+        .set('Authorization', `Bearer ${delegate.token}`)
+        .send({ name: 'Editado pelo delegado' })
+        .expect(200);
+
+      await apiRequest(app)
+        .patch(`/users/${otherAdmin.id}`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ name: 'Editado por admin real' })
+        .expect(200);
+    });
+
     it('auto-clears the delegation when the admin changes the delegate role away from APPROVER', async () => {
       const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
       const approver = await seedUserAndLogin(app, prisma, 'APPROVER');

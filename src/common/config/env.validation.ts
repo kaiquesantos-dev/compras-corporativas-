@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  MinLength,
   validateSync,
 } from 'class-validator';
 
@@ -35,8 +36,16 @@ export class EnvironmentVariables {
   @IsNotEmpty()
   DATABASE_URL: string;
 
+  // MinLength(32): um segredo curto (ex: "x" ou "senha123") passaria na
+  // checagem antiga de "não vazio" e deixaria o app subir normalmente
+  // assinando/validando tokens e comparando a API key com uma chave
+  // trivialmente fraca — 32 caracteres é o mínimo razoável pra dificultar
+  // um ataque de força bruta offline contra o segredo.
   @IsString()
   @IsNotEmpty()
+  @MinLength(32, {
+    message: 'JWT_SECRET deve ter pelo menos 32 caracteres.',
+  })
   JWT_SECRET: string;
 
   @IsString()
@@ -45,6 +54,7 @@ export class EnvironmentVariables {
 
   @IsString()
   @IsNotEmpty()
+  @MinLength(32, { message: 'API_KEY deve ter pelo menos 32 caracteres.' })
   API_KEY: string;
 
   @IsInt()
@@ -55,6 +65,15 @@ export class EnvironmentVariables {
 
   @IsInt()
   CNPJ_API_TIMEOUT_MS: number;
+
+  // Lista de origens (separadas por vírgula) autorizadas a chamar a API via
+  // CORS — ver uso em main.ts. Opcional só pra não quebrar quem já tinha um
+  // .env de antes desta checagem existir; main.ts cai num default seguro
+  // (localhost do Vite) quando não informado, nunca em "libera qualquer
+  // origem".
+  @IsOptional()
+  @IsString()
+  CORS_ORIGIN?: string;
 }
 
 // Função chamada automaticamente pelo ConfigModule assim que a aplicação

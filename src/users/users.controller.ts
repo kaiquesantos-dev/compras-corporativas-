@@ -20,6 +20,8 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -84,39 +86,58 @@ export class UsersController {
   @Patch(':id')
   @ApiOperation({
     summary: 'Atualizar usuário',
-    description: '**Papéis permitidos:** ADMIN',
+    description:
+      '**Papéis permitidos:** ADMIN\n\nSe o alvo for um ADMIN, só um ADMIN de verdade pode editá-lo — acesso obtido só por delegação (isAdminDelegate) não é suficiente.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Alvo é ADMIN e quem chama só tem acesso delegado.',
   })
   @ApiResponse({
     status: 404,
     description: 'Usuário ou departamento não encontrado.',
   })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
-    return this.usersService.update(id, dto);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.usersService.update(id, dto, actor);
   }
 
   @Patch(':id/admin-delegate')
   @ApiOperation({
     summary: 'Conceder ou revogar delegação de acesso ADMIN',
     description:
-      '**Papéis permitidos:** ADMIN\n\nConcede acesso ADMIN temporário a um usuário APPROVER (ex: cobrir férias do admin) ou revoga. Não altera o "role" real do usuário — é um toggle manual, sem data de início/fim.',
+      '**Papéis permitidos:** ADMIN (só um ADMIN de verdade — um usuário com acesso apenas delegado não pode criar novas delegações)\n\nConcede acesso ADMIN temporário a um usuário APPROVER (ex: cobrir férias do admin) ou revoga. Não altera o "role" real do usuário — é um toggle manual, sem data de início/fim.',
   })
   @ApiResponse({ status: 200, description: 'Delegação atualizada.' })
   @ApiResponse({
     status: 400,
     description: 'O usuário alvo não é um APPROVER.',
   })
+  @ApiResponse({
+    status: 403,
+    description: 'Quem chama só tem acesso ADMIN delegado, não real.',
+  })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
   delegateAdmin(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: DelegateAdminDto,
+    @CurrentUser() actor: AuthenticatedUser,
   ) {
-    return this.usersService.delegateAdmin(id, dto.granted);
+    return this.usersService.delegateAdmin(id, dto.granted, actor);
   }
 
   @Delete(':id')
   @ApiOperation({
     summary: 'Remover usuário',
-    description: '**Papéis permitidos:** ADMIN',
+    description:
+      '**Papéis permitidos:** ADMIN\n\nSe o alvo for um ADMIN, só um ADMIN de verdade pode removê-lo — acesso obtido só por delegação (isAdminDelegate) não é suficiente.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Alvo é ADMIN e quem chama só tem acesso delegado.',
   })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
   @ApiResponse({
@@ -124,7 +145,10 @@ export class UsersController {
     description:
       'Usuário possui registros vinculados (ex: solicitações de compra criadas por ele).',
   })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.usersService.remove(id);
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.usersService.remove(id, actor);
   }
 }

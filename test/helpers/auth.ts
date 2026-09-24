@@ -4,7 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaClient, Role } from '../../src/generated/prisma/client';
 
 /** Matches API_KEY in `.env.test`. Every e2e request must send this as X-API-KEY. */
-export const TEST_API_KEY = 'test-api-key';
+export const TEST_API_KEY = 'test-api-key-1234567890-1234567890';
 
 export interface SeededUser {
   id: number;
