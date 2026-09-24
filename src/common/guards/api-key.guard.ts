@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
+import { timingSafeEqual } from 'crypto';
 import { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
@@ -36,12 +37,29 @@ export class ApiKeyGuard implements CanActivate {
     const providedKey = request.headers['x-api-key'];
     const expectedKey = this.configService.getOrThrow<string>('API_KEY');
 
-    if (!providedKey || providedKey !== expectedKey) {
+    if (typeof providedKey !== 'string' || !this.matches(providedKey, expectedKey)) {
       throw new UnauthorizedException(
         'Chave de API ausente ou inválida (header X-API-KEY).',
       );
     }
 
     return true;
+  }
+
+  // Comparação em tempo constante: "!==" numa string comum compara byte a
+  // byte e retorna assim que encontra a primeira diferença, o que vaza (via
+  // timing) quantos bytes iniciais bateram — em teoria, dá pra reconstruir
+  // a API_KEY certa byte a byte medindo a latência de muitas tentativas.
+  // timingSafeEqual não tem esse atalho. Ele exige buffers do MESMO
+  // tamanho (lança RangeError se não forem), então comparamos o
+  // comprimento antes — isso ainda vaza o comprimento da chave, mas não o
+  // conteúdo, que é o que importa aqui.
+  private matches(provided: string, expected: string): boolean {
+    const providedBuffer = Buffer.from(provided);
+    const expectedBuffer = Buffer.from(expected);
+    if (providedBuffer.length !== expectedBuffer.length) {
+      return false;
+    }
+    return timingSafeEqual(providedBuffer, expectedBuffer);
   }
 }

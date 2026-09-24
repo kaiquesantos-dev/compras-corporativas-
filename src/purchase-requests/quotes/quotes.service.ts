@@ -43,17 +43,25 @@ export class QuotesService {
 
     return this.prisma.$transaction(async (tx) => {
       if (pr.status === 'SUBMITTED') {
-        await this.statusService.transitionAndRecord(
-          tx,
-          pr.id,
-          'SUBMITTED',
-          'IN_QUOTATION',
-          user.id,
-        );
-        await tx.purchaseRequest.update({
-          where: { id: pr.id },
-          data: { status: 'IN_QUOTATION' },
-        });
+        try {
+          await this.statusService.transitionAndRecord(
+            tx,
+            pr.id,
+            'SUBMITTED',
+            'IN_QUOTATION',
+            user.id,
+          );
+        } catch (err) {
+          // Diferente de submit/cancel/select/decide, perder essa corrida
+          // não invalida a ação em si: a transição SUBMITTED->IN_QUOTATION é
+          // só um efeito colateral de "esta é a primeira cotação"; se outro
+          // BUYER concorrente já disparou essa mesma transição primeiro, a
+          // solicitação já está em IN_QUOTATION — um estado igualmente
+          // válido para registrar esta cotação — então seguimos em frente
+          // em vez de falhar a request inteira por causa de uma corrida
+          // que já foi resolvida a favor de outra chamada.
+          if (!(err instanceof ConflictException)) throw err;
+        }
       }
 
       return tx.quote.create({
@@ -177,6 +185,22 @@ export class QuotesService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // A transição guiada por compare-and-swap roda PRIMEIRO, antes de
+      // tocar nas cotações: se outra chamada concorrente já selecionou uma
+      // vencedora pra esta mesma solicitação (movendo-a pra fora de
+      // IN_QUOTATION), transitionAndRecord lança 409 aqui e a transação
+      // inteira é desfeita — sem isso, esta chamada perdedora ainda assim
+      // descartava as cotações da vencedora real e sobrescrevia
+      // selectedQuoteId por cima, silenciosamente.
+      const updatedPr = await this.statusService.transitionAndRecord(
+        tx,
+        pr.id,
+        'IN_QUOTATION',
+        'PENDING_APPROVAL',
+        user.id,
+        { data: { selectedQuote: { connect: { id: quote.id } } } },
+      );
+
       await tx.quote.updateMany({
         where: { purchaseRequestId, id: { not: quote.id } },
         data: { status: 'DISCARDED' },
@@ -186,18 +210,7 @@ export class QuotesService {
         data: { status: 'SELECTED' },
       });
 
-      await this.statusService.transitionAndRecord(
-        tx,
-        pr.id,
-        'IN_QUOTATION',
-        'PENDING_APPROVAL',
-        user.id,
-      );
-
-      return tx.purchaseRequest.update({
-        where: { id: pr.id },
-        data: { status: 'PENDING_APPROVAL', selectedQuoteId: quote.id },
-      });
+      return updatedPr;
     });
   }
 }

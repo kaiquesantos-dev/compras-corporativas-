@@ -63,7 +63,7 @@ describe('ApprovalsService', () => {
         },
       });
       expect(prisma.purchaseRequest.update).toHaveBeenCalledWith({
-        where: { id: 1 },
+        where: { id: 1, status: 'PENDING_APPROVAL' },
         data: { status: 'APPROVED', decidedAt: expect.any(Date) },
       });
       expect(result).toEqual({ id: 1, status: 'APPROVED' });
@@ -86,7 +86,7 @@ describe('ApprovalsService', () => {
       );
 
       expect(prisma.purchaseRequest.update).toHaveBeenCalledWith({
-        where: { id: 1 },
+        where: { id: 1, status: 'PENDING_APPROVAL' },
         data: { status: 'REJECTED', decidedAt: expect.any(Date) },
       });
     });

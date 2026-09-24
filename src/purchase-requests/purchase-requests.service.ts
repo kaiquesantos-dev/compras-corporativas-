@@ -141,19 +141,16 @@ export class PurchaseRequestsService {
   // outra é desfeita também.
   async submit(id: number, user: AuthenticatedUser) {
     const pr = await this.findOwnedForWrite(id, user);
-    return this.prisma.$transaction(async (tx) => {
-      await this.statusService.transitionAndRecord(
+    return this.prisma.$transaction((tx) =>
+      this.statusService.transitionAndRecord(
         tx,
         pr.id,
         pr.status,
         'SUBMITTED',
         user.id,
-      );
-      return tx.purchaseRequest.update({
-        where: { id: pr.id },
-        data: { status: 'SUBMITTED', submittedAt: new Date() },
-      });
-    });
+        { data: { submittedAt: new Date() } },
+      ),
+    );
   }
 
   // Cancelar é permitido pelo dono OU por um ADMIN (diferente de
@@ -170,19 +167,16 @@ export class PurchaseRequestsService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      await this.statusService.transitionAndRecord(
+    return this.prisma.$transaction((tx) =>
+      this.statusService.transitionAndRecord(
         tx,
         pr.id,
         pr.status,
         'CANCELLED',
         user.id,
-      );
-      return tx.purchaseRequest.update({
-        where: { id: pr.id },
-        data: { status: 'CANCELLED', cancelledAt: new Date() },
-      });
-    });
+        { data: { cancelledAt: new Date() } },
+      ),
+    );
   }
 
   // Marca a compra como finalizada (depois de aprovada). Quem pode chamar
@@ -194,19 +188,16 @@ export class PurchaseRequestsService {
       throw new NotFoundException('Solicitação de compra não encontrada.');
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      await this.statusService.transitionAndRecord(
+    return this.prisma.$transaction((tx) =>
+      this.statusService.transitionAndRecord(
         tx,
         pr.id,
         pr.status,
         'COMPLETED',
         user.id,
-      );
-      return tx.purchaseRequest.update({
-        where: { id: pr.id },
-        data: { status: 'COMPLETED', completedAt: new Date() },
-      });
-    });
+        { data: { completedAt: new Date() } },
+      ),
+    );
   }
 
   // Devolve a linha do tempo completa de mudanças de status dessa

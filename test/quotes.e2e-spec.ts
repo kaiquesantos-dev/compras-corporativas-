@@ -228,7 +228,7 @@ describe('Quotes (e2e)', () => {
       .expect(400);
   });
 
-  it('rejects a proposal upload larger than 5MB with 400', async () => {
+  it('rejects a proposal upload larger than 5MB with 413', async () => {
     const purchaseRequestId = await createSubmittedPurchaseRequest();
     const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
     const supplierId = await createSupplier(buyer.token, CNPJ_A);
@@ -241,12 +241,43 @@ describe('Quotes (e2e)', () => {
 
     const oversized = Buffer.alloc(6 * 1024 * 1024, 0);
 
+    // 413 (não 400): o multer agora corta o upload durante o parsing, ao
+    // atingir limits.fileSize, antes de bufferizar o arquivo inteiro em
+    // memória (era isso que permitia o DoS por upload gigante) — e o Nest
+    // converte esse estouro automaticamente em PayloadTooLargeException.
     await apiRequest(app)
       .post(
         `/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`,
       )
       .set('Authorization', `Bearer ${buyer.token}`)
       .attach('file', oversized, 'proposta.pdf')
+      .expect(413);
+  });
+
+  it('rejects a file whose content does not match its claimed type (magic-byte check)', async () => {
+    const purchaseRequestId = await createSubmittedPurchaseRequest();
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const supplierId = await createSupplier(buyer.token, CNPJ_A);
+
+    const quote = await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ supplierId, totalValue: 13500.0 })
+      .expect(201);
+
+    // Content-Type mentindo que é PDF, mas o conteúdo real não começa com
+    // a assinatura "%PDF" — deve ser rejeitado mesmo passando pelo
+    // FileTypeValidator (que só olha o Content-Type declarado).
+    await apiRequest(app)
+      .post(
+        `/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/proposal`,
+      )
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .attach(
+        'file',
+        Buffer.from('<html><script>alert(1)</script></html>'),
+        { filename: 'proposta.pdf', contentType: 'application/pdf' },
+      )
       .expect(400);
   });
 

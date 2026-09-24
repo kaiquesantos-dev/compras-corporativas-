@@ -91,6 +91,18 @@ export class SuppliersService {
       ? await this.cnpjLookupService.lookup(dto.document)
       : null;
 
+    // Mesma regra do create(): se o documento está mudando e nem o body nem
+    // a consulta de CNPJ trazem uma razão social, não dá pra seguir. Sem
+    // esta checagem, "legalName: dto.legalName ?? enrichment?.legalName ??
+    // undefined" virava undefined e o Prisma simplesmente NÃO tocava o
+    // campo — o registro ficava com o CNPJ novo e o nome da empresa antiga,
+    // silenciosamente incoerentes.
+    if (dto.document && !dto.legalName && !enrichment?.legalName) {
+      throw new BadRequestException(
+        'Não foi possível validar o novo CNPJ (serviço indisponível ou CNPJ inexistente). Informe "legalName" manualmente para prosseguir.',
+      );
+    }
+
     return this.prisma.supplier.update({
       where: { id },
       data: {

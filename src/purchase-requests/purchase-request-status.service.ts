@@ -46,30 +46,58 @@ export class PurchaseRequestStatusService {
     }
   }
 
-  // Valida a transição e, se for permitida, grava uma linha no histórico
-  // (PurchaseRequestStatusHistory) com quem fez a mudança e quando.
-  // Recebe "tx" (uma transação do Prisma) porque quem chama este método
-  // sempre quer que essa gravação de histórico aconteça JUNTO, na mesma
-  // transação, com a atualização do status da solicitação — ou as duas
-  // coisas acontecem, ou nenhuma (evita ficar com histórico sem o status
-  // realmente ter mudado, ou vice-versa).
+  // Valida a transição, aplica a mudança de status (compare-and-swap) e
+  // grava uma linha no histórico — tudo dentro da mesma transação "tx" que
+  // quem chama já abriu, então ou as três coisas acontecem, ou nenhuma.
+  //
+  // O "compare-and-swap" é o que faltava antes: o UPDATE só é aplicado se o
+  // status da linha, NA HORA DA ESCRITA, ainda for exatamente "from" (usamos
+  // o suporte do Prisma a filtros extras dentro do "where" de um update por
+  // chave única). Sem isso, duas requisições concorrentes que leem o mesmo
+  // "from" antes de qualquer uma commitar (ex: submit + cancel ao mesmo
+  // tempo, ou dois BUYERs selecionando cotações diferentes) conseguiam as
+  // duas passar pela validação e a segunda sobrescrevia o resultado da
+  // primeira em silêncio, sem erro pra ninguém. Agora a segunda encontra
+  // zero linhas casando o filtro, cai no catch abaixo e recebe um 409
+  // claro em vez de corromper o estado sem avisar.
   async transitionAndRecord(
     tx: Prisma.TransactionClient,
     purchaseRequestId: number,
     from: PurchaseRequestStatus,
     to: PurchaseRequestStatus,
     changedByUserId: number,
-    note?: string,
-  ): Promise<void> {
+    options?: { note?: string; data?: Prisma.PurchaseRequestUpdateInput },
+  ) {
     this.assertTransition(from, to);
+
+    let updated;
+    try {
+      updated = await tx.purchaseRequest.update({
+        where: { id: purchaseRequestId, status: from },
+        data: { status: to, ...options?.data },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new ConflictException(
+          `Não é possível mudar o status de ${from} para ${to}: o status já foi alterado por outra operação concorrente.`,
+        );
+      }
+      throw err;
+    }
+
     await tx.purchaseRequestStatusHistory.create({
       data: {
         purchaseRequestId,
         fromStatus: from,
         toStatus: to,
         changedByUserId,
-        note,
+        note: options?.note,
       },
     });
+
+    return updated;
   }
 }

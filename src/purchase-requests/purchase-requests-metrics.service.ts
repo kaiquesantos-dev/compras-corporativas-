@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -52,10 +53,17 @@ export class PurchaseRequestsMetricsService {
       statusGroups.map((group) => [group.status, group._count._all]),
     );
 
-    const totalApprovedValue = approvedRequests.reduce(
-      (sum, pr) => sum + Number(pr.selectedQuote?.totalValue ?? 0),
-      0,
-    );
+    // Soma como Decimal (não Number) até o fim: converter cada totalValue
+    // pra float antes de somar acumula erro de arredondamento binário em
+    // valores que não têm representação exata (ex: 0.10 + 0.20 + 0.30
+    // repetidos muitas vezes) — inaceitável num total que é literalmente o
+    // KPI financeiro do painel. Só vira Number() no final, para a resposta.
+    const totalApprovedValue = approvedRequests
+      .reduce(
+        (sum, pr) => sum.plus(pr.selectedQuote?.totalValue ?? 0),
+        new Prisma.Decimal(0),
+      )
+      .toNumber();
 
     const approvalDurationsHours = decidedRequests.map(
       (pr) =>

@@ -90,6 +90,50 @@ describe('SuppliersService', () => {
     });
   });
 
+  describe('update', () => {
+    it('throws BadRequestException instead of silently keeping the old legalName when the document changes and the lookup fails', async () => {
+      prisma.supplier.findUnique.mockResolvedValue({ id: 1, document: '11111111000191' });
+      cnpjLookupService.lookup.mockResolvedValue(null);
+
+      await expect(
+        service.update(1, { document: '19131243000197' } as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.supplier.update).not.toHaveBeenCalled();
+    });
+
+    it('still updates normally when the document changes and the lookup succeeds', async () => {
+      prisma.supplier.findUnique.mockResolvedValue({ id: 1, document: '11111111000191' });
+      cnpjLookupService.lookup.mockResolvedValue({
+        legalName: 'Fornecedor Real LTDA',
+        tradeName: null,
+        zipCode: null,
+        street: null,
+        city: null,
+        state: null,
+        federalRegistrationStatus: null,
+      });
+      prisma.supplier.update.mockResolvedValue({ id: 1 });
+
+      await service.update(1, { document: '19131243000197' } as any);
+
+      expect(prisma.supplier.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ legalName: 'Fornecedor Real LTDA' }),
+        }),
+      );
+    });
+
+    it('does not require a legalName when the document is not being changed', async () => {
+      prisma.supplier.findUnique.mockResolvedValue({ id: 1, document: '11111111000191' });
+      prisma.supplier.update.mockResolvedValue({ id: 1 });
+
+      await service.update(1, { phone: '11999999999' } as any);
+
+      expect(cnpjLookupService.lookup).not.toHaveBeenCalled();
+      expect(prisma.supplier.update).toHaveBeenCalled();
+    });
+  });
+
   describe('findOne', () => {
     it('throws NotFoundException when the supplier does not exist', async () => {
       prisma.supplier.findUnique.mockResolvedValue(null);

@@ -76,7 +76,7 @@ describe('QuotesService', () => {
       } as any);
 
       expect(prisma.purchaseRequest.update).toHaveBeenCalledWith({
-        where: { id: 1 },
+        where: { id: 1, status: 'SUBMITTED' },
         data: { status: 'IN_QUOTATION' },
       });
     });
@@ -139,8 +139,11 @@ describe('QuotesService', () => {
         data: { status: 'SELECTED' },
       });
       expect(prisma.purchaseRequest.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { status: 'PENDING_APPROVAL', selectedQuoteId: 5 },
+        where: { id: 1, status: 'IN_QUOTATION' },
+        data: {
+          status: 'PENDING_APPROVAL',
+          selectedQuote: { connect: { id: 5 } },
+        },
       });
     });
   });

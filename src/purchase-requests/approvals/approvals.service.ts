@@ -34,13 +34,13 @@ export class ApprovalsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      await this.statusService.transitionAndRecord(
+      const updated = await this.statusService.transitionAndRecord(
         tx,
         pr.id,
         'PENDING_APPROVAL',
         dto.decision,
         user.id,
-        dto.comment,
+        { note: dto.comment, data: { decidedAt: new Date() } },
       );
 
       await tx.approval.create({
@@ -52,10 +52,7 @@ export class ApprovalsService {
         },
       });
 
-      return tx.purchaseRequest.update({
-        where: { id: pr.id },
-        data: { status: dto.decision, decidedAt: new Date() },
-      });
+      return updated;
     });
   }
 

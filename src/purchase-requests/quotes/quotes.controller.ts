@@ -32,6 +32,7 @@ import { CurrentUser } from '../../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../../auth/types/authenticated-user.type';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { QuotesService } from './quotes.service';
+import { FileSignatureValidator } from '../../common/validators/file-signature.validator';
 
 const MAX_PROPOSAL_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -50,7 +51,20 @@ export class QuotesController {
   // multipart/form-data (o que permite anexar a proposta já na criação da
   // cotação); uma request application/json comum passa direto por ele sem
   // efeito nenhum, então os testes/integrações existentes continuam válidos.
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  // limits.fileSize garante que o Multer pare de ler o stream assim que o
+  // arquivo passar de 5MB, ANTES de bufferizar tudo em memória — sem isso,
+  // um upload de vários GB era lido inteiro pra RAM antes do
+  // ParseFilePipeBuilder abaixo sequer rodar (o 5MB dele só rejeitava
+  // DEPOIS do estouro de memória já ter acontecido). O Nest converte esse
+  // estouro automaticamente em 413 Payload Too Large (ver
+  // transformException em @nestjs/platform-express) — não precisa de
+  // tratamento manual.
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_PROPOSAL_SIZE_BYTES },
+    }),
+  )
   @ApiConsumes('multipart/form-data', 'application/json')
   @ApiBody({
     schema: {
@@ -77,7 +91,7 @@ export class QuotesController {
   @ApiResponse({ status: 201, description: 'Cotação registrada.' })
   @ApiResponse({
     status: 400,
-    description: 'Dados inválidos, ou arquivo de tipo não permitido/maior que 5MB.',
+    description: 'Dados inválidos, ou arquivo de tipo/conteúdo não permitido.',
   })
   @ApiResponse({
     status: 404,
@@ -87,6 +101,7 @@ export class QuotesController {
     status: 409,
     description: 'Solicitação não está em um estado que aceite novas cotações.',
   })
+  @ApiResponse({ status: 413, description: 'Arquivo maior que 5MB.' })
   create(
     @Param('purchaseRequestId', ParseIntPipe) purchaseRequestId: number,
     @Body() dto: CreateQuoteDto,
@@ -94,6 +109,7 @@ export class QuotesController {
       new ParseFilePipeBuilder()
         .addFileTypeValidator({ fileType: /(pdf|png|jpe?g)$/i })
         .addMaxSizeValidator({ maxSize: MAX_PROPOSAL_SIZE_BYTES })
+        .addValidator(new FileSignatureValidator())
         .build({ fileIsRequired: false }),
     )
     file: Express.Multer.File | undefined,
@@ -117,11 +133,14 @@ export class QuotesController {
   @Post(':quoteId/proposal')
   @UseGuards(RolesGuard)
   @Roles('BUYER', 'ADMIN')
-  // No Multer-level `limits.fileSize` here on purpose: Multer would reject an
-  // oversized file at the parsing layer with a raw 413, before our own
-  // ParseFilePipeBuilder validator runs. Letting the pipe be the sole
-  // gatekeeper keeps every "invalid upload" case consistently a 400.
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  // limits.fileSize (mesmo motivo do create() acima): rejeita o upload
+  // durante o parsing, antes de bufferizar o arquivo inteiro em memória.
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_PROPOSAL_SIZE_BYTES },
+    }),
+  )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -140,8 +159,9 @@ export class QuotesController {
   @ApiResponse({ status: 201, description: 'Proposta anexada.' })
   @ApiResponse({
     status: 400,
-    description: 'Arquivo ausente, tipo não permitido ou maior que 5MB.',
+    description: 'Arquivo ausente ou tipo/conteúdo não permitido.',
   })
+  @ApiResponse({ status: 413, description: 'Arquivo maior que 5MB.' })
   @ApiResponse({
     status: 409,
     description: 'Solicitação não está em um estado que aceite anexos.',
@@ -153,6 +173,7 @@ export class QuotesController {
       new ParseFilePipeBuilder()
         .addFileTypeValidator({ fileType: /(pdf|png|jpe?g)$/i })
         .addMaxSizeValidator({ maxSize: MAX_PROPOSAL_SIZE_BYTES })
+        .addValidator(new FileSignatureValidator())
         .build({ fileIsRequired: true }),
     )
     file: Express.Multer.File,

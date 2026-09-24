@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from './types/authenticated-user.type';
 
 // Formato exato dos dados que colocamos dentro do token JWT lá no login
@@ -21,7 +22,10 @@ interface JwtPayload {
 // é lido pelo decorator @CurrentUser().
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -30,11 +34,28 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   // Só é chamado depois que o token JÁ foi validado (assinatura correta,
-  // não expirado). Aqui só garantimos que o payload tem o formato esperado.
-  validate(payload: JwtPayload): AuthenticatedUser {
+  // não expirado). Antes, isso apenas confiava cegamente no id/email/role
+  // que estavam dentro do payload — como o token vive até JWT_EXPIRES_IN
+  // (1 dia por padrão) sem nenhuma lista de revogação, um usuário rebaixado
+  // ou excluído continuava autenticado com o papel antigo até o token
+  // expirar sozinho. Agora buscamos o usuário atual no banco a cada
+  // requisição e usamos o papel de LÁ, não o do token — um usuário
+  // excluído cai aqui com 401 imediatamente, e um usuário rebaixado passa
+  // a valer com o novo papel na próxima requisição, não só quando o token
+  // expira.
+  async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     if (!payload?.sub || !payload?.email || !payload?.role) {
       throw new UnauthorizedException('Token inválido.');
     }
-    return { id: payload.sub, email: payload.email, role: payload.role };
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { id: true, email: true, role: true },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Usuário não encontrado ou removido.');
+    }
+
+    return user;
   }
 }
