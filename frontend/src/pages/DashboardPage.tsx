@@ -102,13 +102,19 @@ function KpiCard({
 }) {
   return (
     // min-w-0: um item de grid não encolhe abaixo da largura do seu
-    // conteúdo por padrão, mesmo com minmax(180px, 1fr) na track — sem
+    // conteúdo por padrão, mesmo com minmax(220px, 1fr) na track — sem
     // isso, um valor comprido ainda força o card (e a coluna inteira) a
     // ficar mais largo que o previsto em vez de quebrar linha.
     <div className="min-w-0 rounded-[6px] bg-surface-card p-6 shadow-card">
       <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">{label}</p>
+      {/* Sem break-words de propósito: break-words (overflow-wrap:
+          break-word) deixa o navegador quebrar a string em QUALQUER ponto
+          quando ela não cabe — inclusive no meio de "20.300,00", virando
+          "20.300,0" / "0" numa tela mais estreita. Só existe UM ponto de
+          quebra seguro no valor ("R$" / "20.300,00", no espaço), que é
+          exatamente o que o wrap padrão do navegador já faz sozinho. */}
       <p
-        className={`mt-2 font-sans text-2xl leading-tight font-bold break-words italic ${accent ? 'text-accent' : 'text-ink'}`}
+        className={`mt-2 font-sans text-xl leading-tight font-bold italic ${accent ? 'text-accent' : 'text-ink'}`}
       >
         {value}
       </p>
@@ -264,11 +270,12 @@ export function DashboardPage() {
               breakpoint: xl:grid-cols-6 espremia cada card pra 1/6 da
               largura em qualquer tela grande (notebook, TV, monitor
               ultrawide), estourando valores mais longos como "R$ 40.800,00"
-              pra fora do card. Com minmax(180px, 1fr), o grid nunca deixa
-              uma coluna ficar mais estreita que 180px — ele adiciona mais
-              colunas conforme sobra espaço, em vez de forçar um número fixo
-              delas independente da largura real disponível. */}
-          <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4">
+              pra fora do card. Com minmax(220px, 1fr), o grid nunca deixa
+              uma coluna ficar mais estreita que 220px — largura suficiente
+              pro maior valor esperado (moeda) em uma linha só — e adiciona
+              mais colunas conforme sobra espaço, em vez de forçar um número
+              fixo delas independente da largura real disponível. */}
+          <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
             <KpiCard label="Aguardando aprovação" value={String(metrics.countByStatus.PENDING_APPROVAL ?? 0)} />
             <KpiCard label="Em cotação" value={String(metrics.countByStatus.IN_QUOTATION ?? 0)} />
             <KpiCard label="Aprovadas" value={String(metrics.countByStatus.APPROVED ?? 0)} />
