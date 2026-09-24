@@ -101,9 +101,15 @@ function KpiCard({
   accent?: boolean
 }) {
   return (
-    <div className="rounded-[6px] bg-surface-card p-6 shadow-card">
+    // min-w-0: um item de grid não encolhe abaixo da largura do seu
+    // conteúdo por padrão, mesmo com minmax(180px, 1fr) na track — sem
+    // isso, um valor comprido ainda força o card (e a coluna inteira) a
+    // ficar mais largo que o previsto em vez de quebrar linha.
+    <div className="min-w-0 rounded-[6px] bg-surface-card p-6 shadow-card">
       <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">{label}</p>
-      <p className={`mt-2 font-sans text-3xl font-bold italic ${accent ? 'text-accent' : 'text-ink'}`}>
+      <p
+        className={`mt-2 font-sans text-2xl leading-tight font-bold break-words italic ${accent ? 'text-accent' : 'text-ink'}`}
+      >
         {value}
       </p>
     </div>
@@ -254,7 +260,15 @@ export function DashboardPage() {
         <>
           <PeriodSummary periodStart={metrics.periodStart} periodEnd={metrics.periodEnd} />
 
-          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          {/* auto-fit + minmax em vez de um número fixo de colunas por
+              breakpoint: xl:grid-cols-6 espremia cada card pra 1/6 da
+              largura em qualquer tela grande (notebook, TV, monitor
+              ultrawide), estourando valores mais longos como "R$ 40.800,00"
+              pra fora do card. Com minmax(180px, 1fr), o grid nunca deixa
+              uma coluna ficar mais estreita que 180px — ele adiciona mais
+              colunas conforme sobra espaço, em vez de forçar um número fixo
+              delas independente da largura real disponível. */}
+          <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4">
             <KpiCard label="Aguardando aprovação" value={String(metrics.countByStatus.PENDING_APPROVAL ?? 0)} />
             <KpiCard label="Em cotação" value={String(metrics.countByStatus.IN_QUOTATION ?? 0)} />
             <KpiCard label="Aprovadas" value={String(metrics.countByStatus.APPROVED ?? 0)} />
