@@ -6,8 +6,12 @@ import { fetchPurchaseRequests } from '../api/purchase-requests'
 import { decideApproval } from '../api/approvals'
 import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
+import { StatusBadge } from '../components/ui/StatusBadge'
+import { useConfirm } from '../hooks/confirm-context'
+import type { PurchaseRequest } from '../api/types'
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' })
+const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 
 function errorMessage(err: unknown, fallback: string): string {
   if (!isAxiosError(err)) return fallback
@@ -15,14 +19,38 @@ function errorMessage(err: unknown, fallback: string): string {
   return Array.isArray(message) ? message.join(' ') : (message ?? fallback)
 }
 
+type Tab = 'pending' | 'history'
+
 export function ApprovalsPage() {
   const queryClient = useQueryClient()
+  const confirm = useConfirm()
   const [comments, setComments] = useState<Record<number, string>>({})
+  const [tab, setTab] = useState<Tab>('pending')
 
   const { data, isLoading } = useQuery({
     queryKey: ['purchase-requests', 'pending-approval'],
     queryFn: () => fetchPurchaseRequests({ status: 'PENDING_APPROVAL', pageSize: 50 }),
   })
+
+  // A API só filtra por um status de cada vez — pra juntar aprovadas e
+  // rejeitadas num histórico só, buscamos as duas listas em paralelo e
+  // mesclamos aqui, ordenando pela data da decisão (mais recente primeiro).
+  const { data: approvedData, isLoading: approvedLoading } = useQuery({
+    queryKey: ['purchase-requests', 'decision-history', 'APPROVED'],
+    queryFn: () => fetchPurchaseRequests({ status: 'APPROVED', pageSize: 50 }),
+    enabled: tab === 'history',
+  })
+  const { data: rejectedData, isLoading: rejectedLoading } = useQuery({
+    queryKey: ['purchase-requests', 'decision-history', 'REJECTED'],
+    queryFn: () => fetchPurchaseRequests({ status: 'REJECTED', pageSize: 50 }),
+    enabled: tab === 'history',
+  })
+
+  const history: PurchaseRequest[] = [...(approvedData?.data ?? []), ...(rejectedData?.data ?? [])].sort(
+    (a, b) =>
+      new Date(b.decidedAt ?? b.createdAt).getTime() - new Date(a.decidedAt ?? a.createdAt).getTime(),
+  )
+  const historyLoading = approvedLoading || rejectedLoading
 
   const decideMutation = useMutation({
     mutationFn: (input: { id: number; decision: 'APPROVED' | 'REJECTED' }) =>
@@ -37,66 +65,151 @@ export function ApprovalsPage() {
     },
   })
 
+  // Aprovar/rejeitar move a solicitação pra um estado terminal (ou quase) e
+  // não tem como desfazer pela UI — por isso pede confirmação antes, no
+  // lugar de disparar a decisão direto no clique do botão.
+  async function handleDecide(pr: PurchaseRequest, decision: 'APPROVED' | 'REJECTED') {
+    const ok = await confirm({
+      title: decision === 'APPROVED' ? 'Aprovar solicitação?' : 'Rejeitar solicitação?',
+      message: `"${pr.title}" será ${decision === 'APPROVED' ? 'aprovada' : 'rejeitada'}. Esta decisão fica registrada no histórico e não pode ser desfeita.`,
+      confirmLabel: decision === 'APPROVED' ? 'Aprovar' : 'Rejeitar',
+      variant: decision === 'APPROVED' ? 'success' : 'danger',
+    })
+    if (ok) decideMutation.mutate({ id: pr.id, decision })
+  }
+
   return (
     <div>
       <h1 className="mb-6 font-sans text-3xl font-bold text-accent italic">_Aprovações</h1>
-      <p className="mb-6 text-sm text-ink-muted">
-        Solicitações aguardando decisão — a cotação vencedora já foi selecionada pelo comprador.
-      </p>
 
-      {isLoading && <p className="text-ink-muted">Carregando...</p>}
+      <div className="mb-6 flex gap-2">
+        <button
+          onClick={() => setTab('pending')}
+          className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase transition-colors ${
+            tab === 'pending' ? 'bg-accent text-on-accent' : 'bg-surface-card text-ink-muted shadow-card hover:text-ink'
+          }`}
+        >
+          Pendentes
+        </button>
+        <button
+          onClick={() => setTab('history')}
+          className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase transition-colors ${
+            tab === 'history' ? 'bg-accent text-on-accent' : 'bg-surface-card text-ink-muted shadow-card hover:text-ink'
+          }`}
+        >
+          Histórico
+        </button>
+      </div>
 
-      {data && data.data.length === 0 && (
-        <p className="text-ink-muted">Nenhuma solicitação aguardando aprovação no momento.</p>
+      {tab === 'pending' && (
+        <>
+          <p className="mb-6 text-sm text-ink-muted">
+            Solicitações aguardando decisão — a cotação vencedora já foi selecionada pelo comprador.
+          </p>
+
+          {isLoading && <p className="text-ink-muted">Carregando...</p>}
+
+          {data && data.data.length === 0 && (
+            <p className="text-ink-muted">Nenhuma solicitação aguardando aprovação no momento.</p>
+          )}
+
+          <div className="flex flex-col gap-4">
+            {data?.data.map((pr) => (
+              <div key={pr.id} className="rounded-[6px] bg-surface-card p-6 shadow-card">
+                <div className="mb-3 flex items-start justify-between">
+                  <div>
+                    <Link
+                      to={`/purchase-requests/${pr.id}`}
+                      className="font-sans text-lg font-bold text-ink italic hover:text-accent"
+                    >
+                      {pr.title}
+                    </Link>
+                    <p className="text-sm text-ink-muted">
+                      {pr.requester?.name} · {dateFormatter.format(new Date(pr.createdAt))}
+                    </p>
+                  </div>
+                </div>
+
+                <TextField
+                  label="Comentário (opcional)"
+                  value={comments[pr.id] ?? ''}
+                  onChange={(e) => setComments((current) => ({ ...current, [pr.id]: e.target.value }))}
+                />
+
+                {decideMutation.isError && decideMutation.variables?.id === pr.id && (
+                  <p className="mt-2 text-sm text-accent-text">
+                    {errorMessage(decideMutation.error, 'Não foi possível registrar a decisão.')}
+                  </p>
+                )}
+
+                <div className="mt-4 flex gap-3">
+                  <Button onClick={() => handleDecide(pr, 'APPROVED')} disabled={decideMutation.isPending}>
+                    Aprovar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleDecide(pr, 'REJECTED')}
+                    disabled={decideMutation.isPending}
+                  >
+                    Rejeitar
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
-      <div className="flex flex-col gap-4">
-        {data?.data.map((pr) => (
-          <div key={pr.id} className="rounded-[6px] bg-surface-card p-6 shadow-card">
-            <div className="mb-3 flex items-start justify-between">
-              <div>
-                <Link
-                  to={`/purchase-requests/${pr.id}`}
-                  className="font-sans text-lg font-bold text-ink italic hover:text-accent"
-                >
-                  {pr.title}
-                </Link>
-                <p className="text-sm text-ink-muted">
-                  {pr.requester?.name} · {dateFormatter.format(new Date(pr.createdAt))}
-                </p>
-              </div>
+      {tab === 'history' && (
+        <>
+          <p className="mb-6 text-sm text-ink-muted">
+            Todas as solicitações já decididas — aprovadas ou rejeitadas. Cada linha leva ao histórico
+            completo de status da solicitação, incluindo quem decidiu e quando.
+          </p>
+
+          {historyLoading && <p className="text-ink-muted">Carregando...</p>}
+
+          {!historyLoading && history.length === 0 && (
+            <p className="text-ink-muted">Nenhuma decisão registrada ainda.</p>
+          )}
+
+          {history.length > 0 && (
+            <div className="overflow-x-auto rounded-[6px] bg-surface-card shadow-card">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-grey1 text-xs font-semibold text-ink-muted uppercase">
+                  <tr>
+                    <th className="px-4 py-3">Título</th>
+                    <th className="px-4 py-3">Solicitante</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Decidida em</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((pr) => (
+                    <tr key={pr.id} className="border-t border-grey1 align-top hover:bg-surface-muted">
+                      <td className="px-4 py-3">
+                        <Link
+                          to={`/purchase-requests/${pr.id}`}
+                          className="font-semibold text-ink hover:text-accent"
+                        >
+                          {pr.title}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-ink-muted">{pr.requester?.name ?? '—'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <StatusBadge status={pr.status} />
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-ink-muted">
+                        {pr.decidedAt ? dateTimeFormatter.format(new Date(pr.decidedAt)) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
-            <TextField
-              label="Comentário (opcional)"
-              value={comments[pr.id] ?? ''}
-              onChange={(e) => setComments((current) => ({ ...current, [pr.id]: e.target.value }))}
-            />
-
-            {decideMutation.isError && decideMutation.variables?.id === pr.id && (
-              <p className="mt-2 text-sm text-accent-text">
-                {errorMessage(decideMutation.error, 'Não foi possível registrar a decisão.')}
-              </p>
-            )}
-
-            <div className="mt-4 flex gap-3">
-              <Button
-                onClick={() => decideMutation.mutate({ id: pr.id, decision: 'APPROVED' })}
-                disabled={decideMutation.isPending}
-              >
-                Aprovar
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => decideMutation.mutate({ id: pr.id, decision: 'REJECTED' })}
-                disabled={decideMutation.isPending}
-              >
-                Rejeitar
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

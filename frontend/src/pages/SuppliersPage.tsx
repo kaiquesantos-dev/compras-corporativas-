@@ -12,6 +12,7 @@ import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
 import { Modal } from '../components/ui/Modal'
 import { Pagination } from '../components/ui/Pagination'
+import { useConfirm } from '../hooks/confirm-context'
 
 function errorMessage(err: unknown, fallback: string): string {
   if (!isAxiosError(err)) return fallback
@@ -24,6 +25,7 @@ export function SuppliersPage() {
   const [page, setPage] = useState(1)
   const user = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
+  const confirm = useConfirm()
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['suppliers', page],
@@ -76,8 +78,13 @@ export function SuppliersPage() {
                     {user?.role === 'ADMIN' && (
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <button
-                          onClick={() => {
-                            if (confirm(`Remover "${supplier.legalName}"?`)) deleteMutation.mutate(supplier.id)
+                          onClick={async () => {
+                            const ok = await confirm({
+                              title: 'Remover fornecedor?',
+                              message: `"${supplier.legalName}" será removido permanentemente.`,
+                              confirmLabel: 'Remover',
+                            })
+                            if (ok) deleteMutation.mutate(supplier.id)
                           }}
                           className="text-xs font-semibold text-accent-text uppercase"
                         >

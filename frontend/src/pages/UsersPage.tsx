@@ -9,6 +9,7 @@ import { TextField } from '../components/ui/TextField'
 import { Select } from '../components/ui/Select'
 import { Modal } from '../components/ui/Modal'
 import { Pagination } from '../components/ui/Pagination'
+import { useConfirm } from '../hooks/confirm-context'
 
 const roleLabels: Record<Role, string> = {
   REQUESTER: 'Solicitante',
@@ -27,6 +28,7 @@ export function UsersPage() {
   const [creating, setCreating] = useState(false)
   const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
+  const confirm = useConfirm()
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['users', page],
@@ -71,8 +73,13 @@ export function UsersPage() {
                     <td className="px-4 py-3 whitespace-nowrap text-ink-muted">{roleLabels[user.role]}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <button
-                        onClick={() => {
-                          if (confirm(`Remover "${user.name}"?`)) deleteMutation.mutate(user.id)
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: 'Remover usuário?',
+                            message: `"${user.name}" será removido permanentemente.`,
+                            confirmLabel: 'Remover',
+                          })
+                          if (ok) deleteMutation.mutate(user.id)
                         }}
                         className="text-xs font-semibold text-accent-text uppercase"
                       >

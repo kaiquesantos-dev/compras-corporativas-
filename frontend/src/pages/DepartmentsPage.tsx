@@ -11,6 +11,7 @@ import type { Department } from '../api/types'
 import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
 import { Modal } from '../components/ui/Modal'
+import { useConfirm } from '../hooks/confirm-context'
 
 function errorMessage(err: unknown, fallback: string): string {
   if (!isAxiosError(err)) return fallback
@@ -21,6 +22,7 @@ function errorMessage(err: unknown, fallback: string): string {
 export function DepartmentsPage() {
   const [editing, setEditing] = useState<Department | 'new' | null>(null)
   const queryClient = useQueryClient()
+  const confirm = useConfirm()
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['departments'],
@@ -66,8 +68,13 @@ export function DepartmentsPage() {
                       Editar
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm(`Remover "${dept.name}"?`)) deleteMutation.mutate(dept.id)
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'Remover departamento?',
+                          message: `"${dept.name}" será removido permanentemente.`,
+                          confirmLabel: 'Remover',
+                        })
+                        if (ok) deleteMutation.mutate(dept.id)
                       }}
                       className="text-xs font-semibold text-accent-text uppercase"
                     >
