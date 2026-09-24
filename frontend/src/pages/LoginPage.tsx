@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isAxiosError } from 'axios'
-import { login } from '../api/auth'
+import { fetchCurrentUser, login } from '../api/auth'
 import { decodeJwtUser } from '../lib/jwt'
 import { useAuthStore } from '../store/auth-store'
 import { Button } from '../components/ui/Button'
@@ -21,7 +21,13 @@ export function LoginPage() {
     setLoading(true)
     try {
       const token = await login(email, password)
+      // Popula a sessão com o decode do JWT primeiro (instantâneo, e já
+      // deixa o token disponível pro apiClient) e em seguida confirma com
+      // os dados de verdade do banco via /auth/me — captura isAdminDelegate
+      // corretamente desde o primeiro carregamento, em vez de só na
+      // próxima sincronização periódica.
       setSession(token, decodeJwtUser(token))
+      setSession(token, await fetchCurrentUser())
       navigate('/', { replace: true })
     } catch (err) {
       const message = isAxiosError(err)

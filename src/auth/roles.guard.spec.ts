@@ -2,7 +2,9 @@ import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RolesGuard } from './roles.guard';
 
-function buildContext(user?: { role: string }): ExecutionContext {
+function buildContext(
+  user?: { role: string; isAdminDelegate?: boolean },
+): ExecutionContext {
   return {
     switchToHttp: () => ({ getRequest: () => ({ user }) }),
     getHandler: () => ({}),
@@ -43,5 +45,41 @@ describe('RolesGuard', () => {
     } as unknown as Reflector;
     const guard = new RolesGuard(reflector);
     expect(() => guard.canActivate(buildContext(undefined))).toThrow();
+  });
+
+  it('allows an APPROVER with isAdminDelegate through a route that requires ADMIN', () => {
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue(['ADMIN']),
+    } as unknown as Reflector;
+    const guard = new RolesGuard(reflector);
+    expect(
+      guard.canActivate(
+        buildContext({ role: 'APPROVER', isAdminDelegate: true }),
+      ),
+    ).toBe(true);
+  });
+
+  it('still throws for an APPROVER without isAdminDelegate on a route that requires ADMIN', () => {
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue(['ADMIN']),
+    } as unknown as Reflector;
+    const guard = new RolesGuard(reflector);
+    expect(() =>
+      guard.canActivate(
+        buildContext({ role: 'APPROVER', isAdminDelegate: false }),
+      ),
+    ).toThrow();
+  });
+
+  it('does not let isAdminDelegate substitute for a route that does not require ADMIN', () => {
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue(['BUYER']),
+    } as unknown as Reflector;
+    const guard = new RolesGuard(reflector);
+    expect(() =>
+      guard.canActivate(
+        buildContext({ role: 'APPROVER', isAdminDelegate: true }),
+      ),
+    ).toThrow();
   });
 });

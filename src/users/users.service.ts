@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
@@ -18,6 +22,7 @@ export const USER_SELECT = {
   role: true,
   departmentId: true,
   createdAt: true,
+  isAdminDelegate: true,
 } as const;
 
 // CRUD de usuários, restrito a ADMIN (a restrição de papel está no
@@ -80,7 +85,7 @@ export class UsersService {
   }
 
   async update(id: number, dto: UpdateUserDto) {
-    await this.findOne(id);
+    const current = await this.findOne(id);
     await this.assertDepartmentExists(dto.departmentId);
 
     const data: Record<string, unknown> = { ...dto };
@@ -90,9 +95,41 @@ export class UsersService {
       data.password = await bcrypt.hash(dto.password, 10);
     }
 
+    // Se o papel está mudando pra algo diferente de APPROVER, uma
+    // delegação de admin ativa deixa de fazer sentido (a feature existe
+    // especificamente pra cobrir a ausência do admin via um aprovador) —
+    // limpa sozinho em vez de deixar um usuário REQUESTER/BUYER com acesso
+    // ADMIN esquecido de uma configuração anterior.
+    if (
+      dto.role &&
+      dto.role !== 'APPROVER' &&
+      current.isAdminDelegate
+    ) {
+      data.isAdminDelegate = false;
+    }
+
     return this.prisma.user.update({
       where: { id },
       data,
+      select: USER_SELECT,
+    });
+  }
+
+  // Concede ou revoga acesso ADMIN temporário a um usuário APPROVER — a
+  // "delegação de férias". Só é chamado por rotas já restritas a ADMIN
+  // (real ou já delegado) no controller.
+  async delegateAdmin(id: number, granted: boolean) {
+    const user = await this.findOne(id);
+
+    if (granted && user.role !== 'APPROVER') {
+      throw new BadRequestException(
+        'Só é possível delegar acesso ADMIN para um usuário APPROVER.',
+      );
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { isAdminDelegate: granted },
       select: USER_SELECT,
     });
   }

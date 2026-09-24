@@ -1,5 +1,7 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { fetchCurrentUser } from '../../api/auth'
 import { useAuthStore } from '../../store/auth-store'
 import { cn } from '../../lib/cn'
 import type { Role } from '../../api/types'
@@ -32,13 +34,33 @@ const roleLabels: Record<Role, string> = {
 export function AppShell({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
+  const setSession = useAuthStore((state) => state.setSession)
+  const token = useAuthStore((state) => state.token)
   const navigate = useNavigate()
   // Sidebar fixa a partir do breakpoint md; abaixo disso vira um drawer que
   // começa fechado — numa tela de celular (~375px) uma sidebar de 256px
   // sozinha já ocupa 2/3 da largura e deixa o conteúdo ilegível.
   const [menuOpen, setMenuOpen] = useState(false)
 
-  const visibleItems = NAV_ITEMS.filter((item) => user && item.roles.includes(user.role))
+  // Revalida id/email/role/isAdminDelegate periodicamente enquanto a app
+  // fica aberta — sem isso, um admin concedendo/revogando uma delegação de
+  // acesso só apareceria pro usuário delegado depois de um logout/login
+  // manual, já que o estado local (user) só era populado uma vez, no login.
+  const { data: currentUser } = useQuery({
+    queryKey: ['auth-me'],
+    queryFn: fetchCurrentUser,
+    enabled: !!token,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  })
+  useEffect(() => {
+    if (currentUser && token) setSession(token, currentUser)
+  }, [currentUser, token, setSession])
+
+  const visibleItems = NAV_ITEMS.filter(
+    (item) =>
+      user && (item.roles.includes(user.role) || (user.isAdminDelegate && item.roles.includes('ADMIN'))),
+  )
 
   function handleLogout() {
     logout()
@@ -101,7 +123,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="border-t border-darkblue px-6 py-4">
           <p className="truncate text-sm font-semibold text-white">{user?.email}</p>
-          <p className="text-xs text-grey6">{user ? roleLabels[user.role] : ''}</p>
+          <p className="text-xs text-grey6">
+            {user ? roleLabels[user.role] : ''}
+            {user?.isAdminDelegate && (
+              <span className="ml-1 rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-semibold text-on-accent uppercase">
+                Admin delegado
+              </span>
+            )}
+          </p>
           <button
             onClick={handleLogout}
             className="mt-3 text-xs font-semibold text-grey6 uppercase hover:text-white"

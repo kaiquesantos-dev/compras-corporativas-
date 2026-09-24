@@ -53,6 +53,13 @@ model User {
   departmentId Int?
   department   Department? @relation(fields: [departmentId], references: [id])
   createdAt    DateTime    @default(now())
+  // Delegação temporária de acesso ADMIN pra um usuário APPROVER (ex: admin
+  // sai de férias e passa o acesso pra um aprovador cobrir). É um toggle
+  // manual, sem data de início/fim — o próprio admin liga/desliga. Enquanto
+  // true, RolesGuard trata este usuário como ADMIN em qualquer rota que
+  // exija esse papel, além do papel real dele (APPROVER) continuar valendo
+  // normalmente.
+  isAdminDelegate Boolean @default(false)
 
   purchaseRequests PurchaseRequest[]               @relation("RequesterRequests")
   registeredQuotes Quote[]                         @relation("BuyerQuotes")

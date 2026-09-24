@@ -36,3 +36,10 @@ export async function updateUser(id: number, input: UpdateUserInput): Promise<Us
 export async function deleteUser(id: number): Promise<void> {
   await apiClient.delete(`/users/${id}`)
 }
+
+// Delegação temporária de acesso ADMIN pra um usuário APPROVER (ex: cobrir
+// férias do admin) — toggle manual, sem data de início/fim.
+export async function setAdminDelegate(id: number, granted: boolean): Promise<User> {
+  const { data } = await apiClient.patch<User>(`/users/${id}/admin-delegate`, { granted })
+  return data
+}

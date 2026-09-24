@@ -80,4 +80,49 @@ describe('Auth (e2e)', () => {
       .send({ email: 'admin@compras.com', password: 'senha123' })
       .expect(401);
   });
+
+  describe('GET /auth/me', () => {
+    it('returns the current id/email/role/isAdminDelegate for the logged-in user', async () => {
+      const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+
+      const response = await apiRequest(app)
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${buyer.token}`)
+        .expect(200);
+
+      expect(response.body).toEqual({
+        id: buyer.id,
+        email: buyer.email,
+        role: 'BUYER',
+        isAdminDelegate: false,
+      });
+    });
+
+    it('reflects a role/delegation change made after the token was issued, without a new login', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      const approver = await seedUserAndLogin(app, prisma, 'APPROVER');
+
+      const before = await apiRequest(app)
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${approver.token}`)
+        .expect(200);
+      expect(before.body.isAdminDelegate).toBe(false);
+
+      await apiRequest(app)
+        .patch(`/users/${approver.id}/admin-delegate`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ granted: true })
+        .expect(200);
+
+      const after = await apiRequest(app)
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${approver.token}`)
+        .expect(200);
+      expect(after.body.isAdminDelegate).toBe(true);
+    });
+
+    it('rejects without a valid token with 401', async () => {
+      await apiRequest(app).get('/auth/me').expect(401);
+    });
+  });
 });

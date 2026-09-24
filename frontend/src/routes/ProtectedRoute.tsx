@@ -13,7 +13,8 @@ export function ProtectedRoute({ roles, children }: { roles?: Role[]; children: 
   if (!token || !user) {
     return <Navigate to="/login" replace />
   }
-  if (roles && !roles.includes(user.role)) {
+  const allowed = !roles || roles.includes(user.role) || (user.isAdminDelegate && roles.includes('ADMIN'))
+  if (!allowed) {
     return <Navigate to="/" replace />
   }
   return <AppShell>{children}</AppShell>

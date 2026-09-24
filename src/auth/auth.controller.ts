@@ -1,5 +1,14 @@
-import { Body, Controller, HttpCode, Post } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { CurrentUser } from './current-user.decorator';
+import type { AuthenticatedUser } from './types/authenticated-user.type';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 
@@ -34,5 +43,26 @@ export class AuthController {
   })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto.email, dto.password);
+  }
+
+  // O JWT é decodificado no cliente logo após o login pra popular o estado
+  // de sessão do frontend (id/email/role) — mas isso é só uma "foto" do
+  // momento do login, e nunca muda enquanto o token for válido (até 1 dia).
+  // Esta rota permite ao frontend buscar o estado ATUAL (ex: depois de um
+  // admin conceder/revogar isAdminDelegate) sem precisar de um novo login,
+  // já que o próprio JwtStrategy já revalida o usuário no banco a cada
+  // requisição — aqui só devolvemos o resultado disso.
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiSecurity('x-api-key')
+  @ApiOperation({
+    summary: 'Dados do usuário autenticado',
+    description:
+      '**Papéis permitidos:** Qualquer usuário autenticado\n\nDevolve id/email/role/isAdminDelegate atuais (revalidados no banco a cada chamada) — útil pro frontend atualizar o estado da sessão sem precisar de um novo login, por exemplo depois de uma delegação de acesso ADMIN ser concedida ou revogada.',
+  })
+  @ApiResponse({ status: 200, description: 'Dados do usuário autenticado.' })
+  me(@CurrentUser() user: AuthenticatedUser) {
+    return user;
   }
 }

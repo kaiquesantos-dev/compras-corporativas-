@@ -26,6 +26,7 @@ describe('JwtStrategy', () => {
       id: 1,
       email: 'current@compras.com',
       role: 'REQUESTER',
+      isAdminDelegate: false,
     });
 
     // Payload traz um email/role antigos (ex: token emitido antes de uma
@@ -38,12 +39,13 @@ describe('JwtStrategy', () => {
 
     expect(prisma.user.findUnique).toHaveBeenCalledWith({
       where: { id: 1 },
-      select: { id: true, email: true, role: true },
+      select: { id: true, email: true, role: true, isAdminDelegate: true },
     });
     expect(result).toEqual({
       id: 1,
       email: 'current@compras.com',
       role: 'REQUESTER',
+      isAdminDelegate: false,
     });
   });
 

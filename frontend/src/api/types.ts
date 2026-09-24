@@ -18,6 +18,9 @@ export interface AuthenticatedUser {
   id: number
   email: string
   role: Role
+  // Delegação temporária de acesso ADMIN (ex: cobrir férias do admin) —
+  // ver GET /auth/me, que revalida isso no banco a cada chamada.
+  isAdminDelegate: boolean
 }
 
 export interface User {
@@ -27,6 +30,9 @@ export interface User {
   role: Role
   departmentId: number | null
   createdAt: string
+  // Delegação temporária de acesso ADMIN (ex: cobrir férias do admin) —
+  // só faz sentido quando role === 'APPROVER'.
+  isAdminDelegate: boolean
 }
 
 export interface Department {

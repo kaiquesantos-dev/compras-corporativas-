@@ -23,6 +23,7 @@ import { Roles } from '../auth/roles.decorator';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { DelegateAdminDto } from './dto/delegate-admin.dto';
 import { UsersService } from './users.service';
 
 // Aqui os guards e o @Roles('ADMIN') ficam no controller inteiro (e não
@@ -91,6 +92,25 @@ export class UsersController {
   })
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
+  }
+
+  @Patch(':id/admin-delegate')
+  @ApiOperation({
+    summary: 'Conceder ou revogar delegação de acesso ADMIN',
+    description:
+      '**Papéis permitidos:** ADMIN\n\nConcede acesso ADMIN temporário a um usuário APPROVER (ex: cobrir férias do admin) ou revoga. Não altera o "role" real do usuário — é um toggle manual, sem data de início/fim.',
+  })
+  @ApiResponse({ status: 200, description: 'Delegação atualizada.' })
+  @ApiResponse({
+    status: 400,
+    description: 'O usuário alvo não é um APPROVER.',
+  })
+  @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
+  delegateAdmin(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: DelegateAdminDto,
+  ) {
+    return this.usersService.delegateAdmin(id, dto.granted);
   }
 
   @Delete(':id')

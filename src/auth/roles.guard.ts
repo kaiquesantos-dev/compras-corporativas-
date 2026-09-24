@@ -37,7 +37,16 @@ export class RolesGuard implements CanActivate {
       .getRequest<{ user?: AuthenticatedUser }>();
     const user = request.user;
 
-    if (!user || !requiredRoles.includes(user.role)) {
+    // isAdminDelegate: usuário APPROVER com acesso ADMIN delegado (ex: para
+    // cobrir as férias do admin) passa em qualquer rota que exija ADMIN,
+    // sem que o "role" real dele mude — continua sendo um APPROVER normal
+    // em tudo que exigir especificamente esse papel.
+    const hasAccess =
+      !!user &&
+      (requiredRoles.includes(user.role) ||
+        (user.isAdminDelegate && requiredRoles.includes('ADMIN')));
+
+    if (!hasAccess) {
       throw new ForbiddenException(
         'Você não tem permissão para executar esta ação.',
       );

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
-import { createUser, deleteUser, fetchUsers, type CreateUserInput } from '../api/users'
+import { createUser, deleteUser, fetchUsers, setAdminDelegate, type CreateUserInput } from '../api/users'
 import { fetchDepartments } from '../api/departments'
 import type { Role } from '../api/types'
 import { Button } from '../components/ui/Button'
@@ -42,6 +42,24 @@ export function UsersPage() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['users'] })
   const createMutation = useMutation({ mutationFn: createUser, onSuccess: invalidate })
   const deleteMutation = useMutation({ mutationFn: deleteUser, onSuccess: invalidate })
+  const delegateMutation = useMutation({
+    mutationFn: (input: { id: number; granted: boolean }) => setAdminDelegate(input.id, input.granted),
+    onSuccess: invalidate,
+  })
+
+  // Ligar/desligar acesso ADMIN é uma ação sensível o suficiente pra pedir
+  // confirmação antes — mesmo padrão usado em "Remover".
+  async function handleToggleDelegate(user: { id: number; name: string }, granted: boolean) {
+    const ok = await confirm({
+      title: granted ? 'Delegar acesso ADMIN?' : 'Revogar acesso ADMIN?',
+      message: granted
+        ? `"${user.name}" passará a ter acesso total de administrador, além do papel de aprovador. Use para cobrir a ausência do admin (ex: férias).`
+        : `"${user.name}" perderá o acesso de administrador delegado imediatamente, voltando a ter só as permissões de aprovador.`,
+      confirmLabel: granted ? 'Delegar' : 'Revogar',
+      variant: granted ? 'success' : 'danger',
+    })
+    if (ok) delegateMutation.mutate({ id: user.id, granted })
+  }
 
   return (
     <div>
@@ -70,8 +88,27 @@ export function UsersPage() {
                   <tr key={user.id} className="border-t border-grey1 align-top">
                     <td className="px-4 py-3 text-ink">{user.name}</td>
                     <td className="px-4 py-3 text-ink-muted">{user.email}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-ink-muted">{roleLabels[user.role]}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-ink-muted">
+                      {roleLabels[user.role]}
+                      {user.isAdminDelegate && (
+                        <span className="ml-2 inline-block rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-on-accent uppercase">
+                          Admin delegado
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
+                      {/* Delegação de ADMIN só faz sentido pra um APPROVER
+                          (é a regra que o backend também aplica) — outros
+                          papéis nem mostram o botão. */}
+                      {user.role === 'APPROVER' && (
+                        <button
+                          onClick={() => handleToggleDelegate(user, !user.isAdminDelegate)}
+                          disabled={delegateMutation.isPending}
+                          className="mr-4 text-xs font-semibold text-ink-muted uppercase hover:text-accent-text"
+                        >
+                          {user.isAdminDelegate ? 'Revogar admin' : 'Delegar admin'}
+                        </button>
+                      )}
                       <button
                         onClick={async () => {
                           const ok = await confirm({
