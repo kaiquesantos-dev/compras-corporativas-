@@ -209,9 +209,16 @@ export class PurchaseRequestsService {
     }
     this.assertViewAccess(pr, user);
 
+    // include changedBy: sem isso, a resposta só tinha changedByUserId (um
+    // número cru) — o frontend não tinha como mostrar QUEM fez cada mudança
+    // de status, só conseguia comparar contra o usuário logado e escrever
+    // "por você" (e nada pras mudanças feitas por qualquer outra pessoa,
+    // como o comprador movendo SUBMITTED → IN_QUOTATION ao registrar a
+    // primeira cotação).
     return this.prisma.purchaseRequestStatusHistory.findMany({
       where: { purchaseRequestId: id },
       orderBy: { changedAt: 'asc' },
+      include: { changedBy: { select: { id: true, name: true } } },
     });
   }
 

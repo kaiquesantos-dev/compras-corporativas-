@@ -87,6 +87,7 @@ export interface PurchaseRequestStatusHistoryEntry {
   fromStatus: PurchaseRequestStatus | null
   toStatus: PurchaseRequestStatus
   changedByUserId: number
+  changedBy: { id: number; name: string }
   changedAt: string
   note: string | null
 }

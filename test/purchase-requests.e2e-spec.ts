@@ -224,6 +224,9 @@ describe('PurchaseRequests (e2e)', () => {
     expect(history.body[0]).toMatchObject({
       fromStatus: 'DRAFT',
       toStatus: 'SUBMITTED',
+      // Sem isso, o frontend não tinha como mostrar QUEM fez cada mudança
+      // de status pra ninguém além do próprio usuário logado.
+      changedBy: { id: requester.id, name: 'REQUESTER' },
     });
   });
 

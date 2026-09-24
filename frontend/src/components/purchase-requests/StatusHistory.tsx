@@ -41,7 +41,13 @@ export function StatusHistory({ purchaseRequestId }: { purchaseRequestId: number
               </p>
               <p className="text-xs text-ink-muted">
                 {dateTimeFormatter.format(new Date(entry.changedAt))}
-                {entry.changedByUserId === currentUserId ? ' · por você' : ''}
+                {/* "você" pro próprio usuário (mais natural que ver o
+                    próprio nome), nome de verdade pra qualquer outra
+                    pessoa — antes disso, uma mudança feita por outro
+                    usuário (ex: o comprador movendo a solicitação pra "Em
+                    cotação" ao registrar a primeira cotação) não mostrava
+                    autoria nenhuma. */}
+                {entry.changedByUserId === currentUserId ? ' · por você' : entry.changedBy ? ` · por ${entry.changedBy.name}` : ''}
                 {entry.note ? ` · ${entry.note}` : ''}
               </p>
             </div>
