@@ -23,20 +23,29 @@ export class PurchaseRequestsMetricsService {
           }
         : {};
 
-    const [statusGroups, approvedRequests, decidedRequests] = await Promise.all(
-      [
+    const [statusGroups, approvedValueAggregate, decidedRequests] =
+      await Promise.all([
         this.prisma.purchaseRequest.groupBy({
           by: ['status'],
           _count: { _all: true },
           where: createdAtFilter,
         }),
-        this.prisma.purchaseRequest.findMany({
+        // Soma feita no banco (SUM), não carregando cada linha pra somar em
+        // JS: antes disso era um findMany() sem limite trazendo TODAS as
+        // solicitações aprovadas/concluídas (com a cotação selecionada
+        // aninhada) pra memória do Node só pra somar um campo — cresce
+        // linearmente com o histórico inteiro em vez de custar uma soma
+        // agregada do Postgres. selectedFor é a relação inversa de
+        // PurchaseRequest.selectedQuote (1:1), então filtramos a Quote pela
+        // solicitação a que ela está vinculada como vencedora.
+        this.prisma.quote.aggregate({
+          _sum: { totalValue: true },
           where: {
-            status: { in: ['APPROVED', 'COMPLETED'] },
-            selectedQuoteId: { not: null },
-            ...createdAtFilter,
+            selectedFor: {
+              status: { in: ['APPROVED', 'COMPLETED'] },
+              ...createdAtFilter,
+            },
           },
-          select: { selectedQuote: { select: { totalValue: true } } },
         }),
         this.prisma.purchaseRequest.findMany({
           where: {
@@ -46,24 +55,21 @@ export class PurchaseRequestsMetricsService {
           },
           select: { submittedAt: true, decidedAt: true },
         }),
-      ],
-    );
+      ]);
 
     const countByStatus = Object.fromEntries(
       statusGroups.map((group) => [group.status, group._count._all]),
     );
 
-    // Soma como Decimal (não Number) até o fim: converter cada totalValue
-    // pra float antes de somar acumula erro de arredondamento binário em
-    // valores que não têm representação exata (ex: 0.10 + 0.20 + 0.30
-    // repetidos muitas vezes) — inaceitável num total que é literalmente o
-    // KPI financeiro do painel. Só vira Number() no final, para a resposta.
-    const totalApprovedValue = approvedRequests
-      .reduce(
-        (sum, pr) => sum.plus(pr.selectedQuote?.totalValue ?? 0),
-        new Prisma.Decimal(0),
-      )
-      .toNumber();
+    // .toNumber() só no final, sobre o Decimal que o próprio Postgres já
+    // somou — não perde a precisão que somar em JS (float) perderia.
+    // new Prisma.Decimal(...) em vez de usar o valor direto: normaliza o
+    // que veio do _sum (Decimal de verdade em runtime, mas nos testes
+    // unitários o prisma é mockado e pode devolver um number cru) antes de
+    // chamar .toNumber() nele.
+    const totalApprovedValue = new Prisma.Decimal(
+      approvedValueAggregate._sum.totalValue ?? 0,
+    ).toNumber();
 
     const approvalDurationsHours = decidedRequests.map(
       (pr) =>

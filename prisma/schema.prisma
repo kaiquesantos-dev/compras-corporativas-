@@ -108,6 +108,14 @@ model PurchaseRequest {
   quotes   Quote[]                        @relation("RequestQuotes")
   approval Approval?
   history  PurchaseRequestStatusHistory[]
+
+  // status: toda listagem/filtro (findAll, o dashboard de métricas via
+  // groupBy) filtra ou agrupa por aqui — sem índice, cada uma dessas
+  // consultas varre a tabela inteira. requesterId: todo REQUESTER lista as
+  // próprias solicitações filtrando por este campo (Prisma/Postgres não
+  // cria índice automático pra colunas de FK comuns, só pra @id/@unique).
+  @@index([status])
+  @@index([requesterId])
 }
 
 model PurchaseItem {
@@ -119,6 +127,8 @@ model PurchaseItem {
   unit               String
   estimatedUnitPrice Decimal?        @db.Decimal(12, 2)
   createdAt          DateTime        @default(now())
+
+  @@index([purchaseRequestId])
 }
 
 model Quote {
@@ -140,6 +150,8 @@ model Quote {
   createdAt           DateTime        @default(now())
 
   selectedFor PurchaseRequest? @relation("SelectedQuote")
+
+  @@index([purchaseRequestId])
 }
 
 model Approval {
@@ -163,4 +175,6 @@ model PurchaseRequestStatusHistory {
   changedBy         User                   @relation("StatusChangedBy", fields: [changedByUserId], references: [id])
   changedAt         DateTime               @default(now())
   note              String?
+
+  @@index([purchaseRequestId])
 }
