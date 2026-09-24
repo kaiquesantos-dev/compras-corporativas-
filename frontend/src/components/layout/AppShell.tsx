@@ -46,8 +46,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   // fica aberta — sem isso, um admin concedendo/revogando uma delegação de
   // acesso só apareceria pro usuário delegado depois de um logout/login
   // manual, já que o estado local (user) só era populado uma vez, no login.
+  //
+  // A query key inclui o token (não é só ['auth-me']) de propósito: sem
+  // isso, se o usuário A deslogasse e o usuário B logasse na mesma aba
+  // antes de uma resposta de A ainda em voo chegar, essa resposta cairia
+  // no cache compartilhado da mesma key e podia parear o token novo de B
+  // com os dados antigos de A (role/isAdminDelegate errados). Com a key
+  // por token, trocar de sessão sempre gera uma query nova e isolada —
+  // uma resposta tardia da sessão anterior nunca alcança o cache atual.
   const { data: currentUser } = useQuery({
-    queryKey: ['auth-me'],
+    queryKey: ['auth-me', token],
     queryFn: fetchCurrentUser,
     enabled: !!token,
     refetchInterval: 30_000,

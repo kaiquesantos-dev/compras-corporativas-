@@ -35,14 +35,18 @@ export function ApprovalsPage() {
   // A API só filtra por um status de cada vez — pra juntar aprovadas e
   // rejeitadas num histórico só, buscamos as duas listas em paralelo e
   // mesclamos aqui, ordenando pela data da decisão (mais recente primeiro).
+  // pageSize:100 é o máximo que o backend aceita (MAX_PAGE_SIZE) — se algum
+  // dia isso não bastar, "truncated" abaixo avisa em vez de esconder dados
+  // silenciosamente.
+  const HISTORY_PAGE_SIZE = 100
   const { data: approvedData, isLoading: approvedLoading } = useQuery({
     queryKey: ['purchase-requests', 'decision-history', 'APPROVED'],
-    queryFn: () => fetchPurchaseRequests({ status: 'APPROVED', pageSize: 50 }),
+    queryFn: () => fetchPurchaseRequests({ status: 'APPROVED', pageSize: HISTORY_PAGE_SIZE }),
     enabled: tab === 'history',
   })
   const { data: rejectedData, isLoading: rejectedLoading } = useQuery({
     queryKey: ['purchase-requests', 'decision-history', 'REJECTED'],
-    queryFn: () => fetchPurchaseRequests({ status: 'REJECTED', pageSize: 50 }),
+    queryFn: () => fetchPurchaseRequests({ status: 'REJECTED', pageSize: HISTORY_PAGE_SIZE }),
     enabled: tab === 'history',
   })
 
@@ -51,6 +55,9 @@ export function ApprovalsPage() {
       new Date(b.decidedAt ?? b.createdAt).getTime() - new Date(a.decidedAt ?? a.createdAt).getTime(),
   )
   const historyLoading = approvedLoading || rejectedLoading
+  const historyTruncated =
+    (approvedData && approvedData.total > approvedData.data.length) ||
+    (rejectedData && rejectedData.total > rejectedData.data.length)
 
   const decideMutation = useMutation({
     mutationFn: (input: { id: number; decision: 'APPROVED' | 'REJECTED' }) =>
@@ -62,6 +69,11 @@ export function ApprovalsPage() {
       // historico antigos, ate expirar o cache ou dar reload manual.
       queryClient.invalidateQueries({ queryKey: ['purchase-request'] })
       queryClient.invalidateQueries({ queryKey: ['purchase-request-history'] })
+      // Faltava isso: aprovar/rejeitar muda "aguardando aprovação",
+      // "aprovadas" e a distribuição por status do Painel — sem invalidar,
+      // os KPIs lá ficavam mostrando os números de antes da decisão até o
+      // cache expirar sozinho.
+      queryClient.invalidateQueries({ queryKey: ['purchase-metrics'] })
     },
   })
 
@@ -171,6 +183,13 @@ export function ApprovalsPage() {
 
           {!historyLoading && history.length === 0 && (
             <p className="text-ink-muted">Nenhuma decisão registrada ainda.</p>
+          )}
+
+          {!historyLoading && historyTruncated && (
+            <p className="mb-4 text-xs text-ink-muted">
+              Mostrando as {HISTORY_PAGE_SIZE} decisões mais recentes de cada tipo (aprovada/rejeitada).
+              Há mais decisões além dessas.
+            </p>
           )}
 
           {history.length > 0 && (

@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { cn } from '../../lib/cn'
 
 // Variantes do design system IT Lean (Button/README.md): primary (.main-link),
@@ -20,9 +20,16 @@ const variantClasses: Record<Variant, string> = {
   ghost: 'text-ink hover:bg-grey1 rounded-[8px] px-3 py-2',
 }
 
-export function Button({ variant = 'primary', className, children, ...props }: ButtonProps) {
+// forwardRef: o ConfirmDialog precisa de uma ref pro botão "Cancelar" pra
+// mover o foco pra lá quando o modal abre (gerenciamento de foco básico de
+// modal/dialog) — sem isso, um <Button> não tem como ser alvo de .focus().
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { variant = 'primary', className, children, ...props },
+  ref,
+) {
   return (
     <button
+      ref={ref}
       className={cn(
         'font-sans text-[13px] font-semibold italic uppercase tracking-wide transition-all duration-200 ease-in-out disabled:cursor-not-allowed disabled:opacity-50',
         variantClasses[variant],
@@ -33,4 +40,4 @@ export function Button({ variant = 'primary', className, children, ...props }: B
       {children}
     </button>
   )
-}
+})

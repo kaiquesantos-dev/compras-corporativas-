@@ -12,6 +12,12 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const resolveRef = useRef<((value: boolean) => void) | null>(null)
 
   const confirm = useCallback<ConfirmFn>((opts) => {
+    // Se já existe uma confirmação pendente (ex: clicou em "Remover" numa
+    // linha, e antes de decidir clicou em "Remover" noutra), resolve a
+    // anterior com false em vez de simplesmente sobrescrever resolveRef —
+    // sem isso, a primeira Promise nunca era resolvida/rejeitada e o
+    // `await confirm(...)` de quem chamou ficava pendurado pra sempre.
+    resolveRef.current?.(false)
     setOptions(opts)
     return new Promise<boolean>((resolve) => {
       resolveRef.current = resolve

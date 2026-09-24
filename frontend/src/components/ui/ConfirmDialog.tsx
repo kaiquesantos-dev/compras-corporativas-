@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { cn } from '../../lib/cn'
 import { Button } from './Button'
 
@@ -68,10 +69,42 @@ export function ConfirmDialog({
   onConfirm: () => void
   onCancel: () => void
 }) {
+  const cancelButtonRef = useRef<HTMLButtonElement>(null)
+  // Guarda quem tinha foco antes do modal abrir (o botão "Remover"/"Delegar
+  // admin" que disparou o confirm()) pra devolver o foco pra lá quando
+  // fechar — sem isso, um usuário de teclado/leitor de tela perde a
+  // referência de onde estava depois de confirmar/cancelar.
+  const triggerRef = useRef<Element | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    triggerRef.current = document.activeElement
+    // Foco no botão "Cancelar" por padrão (não no de confirmar): pressionar
+    // Enter sem querer não deveria disparar a ação destrutiva/irreversível.
+    cancelButtonRef.current?.focus()
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onCancel()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      if (triggerRef.current instanceof HTMLElement) {
+        triggerRef.current.focus()
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-dialog-title"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+    >
       <div className="w-full max-w-sm rounded-[6px] bg-surface-card p-6 text-center shadow-panel">
         <div
           className={cn(
@@ -82,7 +115,9 @@ export function ConfirmDialog({
           <Icon variant={variant} />
         </div>
 
-        <h2 className="mb-2 font-sans text-xl font-bold text-ink italic">{title}</h2>
+        <h2 id="confirm-dialog-title" className="mb-2 font-sans text-xl font-bold text-ink italic">
+          {title}
+        </h2>
         {message ? <p className="mb-6 text-sm text-ink-muted">{message}</p> : <div className="mb-6" />}
 
         <div className="flex flex-col gap-3 sm:flex-row-reverse">
@@ -94,7 +129,14 @@ export function ConfirmDialog({
           >
             {pending ? 'Aguarde...' : confirmLabel}
           </Button>
-          <Button type="button" variant="outline" onClick={onCancel} disabled={pending} className="flex-1">
+          <Button
+            ref={cancelButtonRef}
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={pending}
+            className="flex-1"
+          >
             {cancelLabel}
           </Button>
         </div>
