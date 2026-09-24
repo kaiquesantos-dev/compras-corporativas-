@@ -30,9 +30,25 @@ export function LoginPage() {
       setSession(token, await fetchCurrentUser())
       navigate('/', { replace: true })
     } catch (err) {
-      const message = isAxiosError(err)
-        ? ((err.response?.data as { message?: string } | undefined)?.message ?? 'Não foi possível entrar.')
-        : 'Não foi possível entrar.'
+      // Não repassamos a mensagem crua do backend pra tela de login: um
+      // 401 pode vir tanto de "senha errada" quanto de um problema de
+      // infraestrutura (ex: chave de API do próprio frontend desatualizada
+      // — um detalhe técnico que não é "culpa" do usuário nem algo que ele
+      // saiba resolver). Um erro genérico e humano aqui é o padrão de
+      // mercado pra tela de login (Google, GitHub etc. fazem o mesmo) — e
+      // tem o efeito colateral bom de nunca revelar qual das duas coisas
+      // falhou. Só o 400 (corpo mal formado, ex: email inválido) mostra o
+      // detalhe do backend, porque aí é realmente algo que o usuário
+      // consegue corrigir olhando a mensagem.
+      let message = 'Não foi possível entrar. Tente novamente em instantes.'
+      if (isAxiosError(err)) {
+        if (err.response?.status === 401) {
+          message = 'E-mail ou senha incorretos.'
+        } else if (err.response?.status === 400) {
+          const backendMessage = (err.response?.data as { message?: string } | undefined)?.message
+          message = backendMessage ?? 'Dados inválidos.'
+        }
+      }
       setError(message)
     } finally {
       setLoading(false)

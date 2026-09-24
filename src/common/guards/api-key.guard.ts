@@ -38,9 +38,13 @@ export class ApiKeyGuard implements CanActivate {
     const expectedKey = this.configService.getOrThrow<string>('API_KEY');
 
     if (typeof providedKey !== 'string' || !this.matches(providedKey, expectedKey)) {
-      throw new UnauthorizedException(
-        'Chave de API ausente ou inválida (header X-API-KEY).',
-      );
+      // Mensagem genérica de propósito ("Não autorizado", sem citar o nome
+      // do header): quem integra com a API já sabe pelo Swagger que
+      // X-API-KEY é exigido, e não faz sentido nenhum detalhe de
+      // infraestrutura vazar pra tela de um usuário final (ex: login) — o
+      // padrão de mercado pra qualquer 401 de autenticação é uma mensagem
+      // curta e genérica, sem expor qual credencial especificamente falhou.
+      throw new UnauthorizedException('Não autorizado.');
     }
 
     return true;
