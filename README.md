@@ -173,10 +173,13 @@ IN_QUOTATION --buyer seleciona cotação vencedora--> PENDING_APPROVAL
 PENDING_APPROVAL --approver aprova--> APPROVED
 PENDING_APPROVAL --approver rejeita--> REJECTED (terminal)
 APPROVED --buyer/admin completa--> COMPLETED (terminal)
-DRAFT | SUBMITTED | IN_QUOTATION --requester/admin cancela--> CANCELLED (terminal)
+DRAFT | SUBMITTED --requester dono/admin cancela--> CANCELLED (terminal)
+IN_QUOTATION --buyer/admin cancela--> CANCELLED (terminal)
 ```
 
 `REJECTED`, `COMPLETED` e `CANCELLED` são terminais: nenhuma ação (cotar, aprovar, cancelar, completar) é permitida a partir deles — qualquer tentativa retorna `409`.
+
+**Quem pode cancelar muda conforme o estado:** em `DRAFT`/`SUBMITTED` é o REQUESTER dono (ou ADMIN) — a solicitação ainda não envolveu nenhum comprador. A partir de `IN_QUOTATION`, o comprador já está negociando com fornecedores de verdade, então o REQUESTER dono deixa de poder cancelar sozinho: só um BUYER ou ADMIN decidem a partir daí, para que quem está conduzindo a cotação tenha voz nessa decisão.
 
 ## Endpoints
 
@@ -232,7 +235,7 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 | GET | `/purchase-requests/:id` | - | — | `200` · `403` recurso de terceiro · `404` |
 | PATCH | `/purchase-requests/:id` | REQUESTER dono | `{ title?, justification? }` | `200` · `403` · `404` · `409` fora de DRAFT |
 | POST | `/purchase-requests/:id/submit` | REQUESTER dono | — | `200` · `403` · `409` fora de DRAFT |
-| POST | `/purchase-requests/:id/cancel` | REQUESTER dono, ADMIN | — | `200` · `403` · `409` estado não cancelável |
+| POST | `/purchase-requests/:id/cancel` | REQUESTER dono (DRAFT/SUBMITTED), BUYER (a partir de IN_QUOTATION), ADMIN (qualquer estado cancelável) | — | `200` · `403` papel/estado incompatível · `409` estado não cancelável |
 | POST | `/purchase-requests/:id/complete` | BUYER, ADMIN | — | `200` · `409` fora de APPROVED |
 | GET | `/purchase-requests/:id/history` | - | — | `200` · `403` · `404` |
 

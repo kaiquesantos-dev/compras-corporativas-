@@ -153,18 +153,33 @@ export class PurchaseRequestsService {
     );
   }
 
-  // Cancelar é permitido pelo dono OU por um ADMIN (diferente de
-  // submit/update, que só o dono pode fazer) — é uma exceção proposital
-  // para que um administrador consiga limpar solicitações travadas.
+  // Quem pode cancelar depende do estado atual:
+  // - DRAFT/SUBMITTED: o dono (REQUESTER) ou um ADMIN — a solicitação ainda
+  //   é "só dele", nenhum comprador foi envolvido ainda.
+  // - IN_QUOTATION em diante: só BUYER ou ADMIN. A partir daqui o comprador
+  //   já está negociando com fornecedores de verdade — deixar o REQUESTER
+  //   dono cancelar sozinho jogaria fora esse trabalho sem quem está
+  //   conduzindo o processo ter voz na decisão. ADMIN continua podendo
+  //   cancelar em qualquer estado, para conseguir limpar solicitações
+  //   travadas independente de quem "deveria" decidir.
   async cancel(id: number, user: AuthenticatedUser) {
     const pr = await this.prisma.purchaseRequest.findUnique({ where: { id } });
     if (!pr) {
       throw new NotFoundException('Solicitação de compra não encontrada.');
     }
-    if (user.role !== 'ADMIN' && pr.requesterId !== user.id) {
-      throw new ForbiddenException(
-        'Você não tem acesso a esta solicitação de compra.',
-      );
+
+    if (user.role !== 'ADMIN') {
+      if (pr.status === 'IN_QUOTATION') {
+        if (user.role !== 'BUYER') {
+          throw new ForbiddenException(
+            'A partir de "Em cotação", só um comprador ou administrador pode cancelar esta solicitação.',
+          );
+        }
+      } else if (pr.requesterId !== user.id) {
+        throw new ForbiddenException(
+          'Você não tem acesso a esta solicitação de compra.',
+        );
+      }
     }
 
     return this.prisma.$transaction((tx) =>

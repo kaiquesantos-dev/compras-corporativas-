@@ -69,9 +69,14 @@ export function PurchaseRequestDetailPage() {
   const isOwner = user?.id === pr.requesterId
   const isBuyerOrAdmin = user?.role === 'BUYER' || user?.role === 'ADMIN'
   const canSubmit = isOwner && pr.status === 'DRAFT'
+  // A partir de IN_QUOTATION o comprador já está negociando com
+  // fornecedores de verdade — o dono (REQUESTER) não pode mais cancelar
+  // sozinho nesse ponto em diante, só BUYER ou ADMIN (mesma regra aplicada
+  // no backend, em purchase-requests.service.ts).
   const canCancel =
-    (isOwner || user?.role === 'ADMIN') &&
-    ['DRAFT', 'SUBMITTED', 'IN_QUOTATION'].includes(pr.status)
+    pr.status === 'IN_QUOTATION'
+      ? isBuyerOrAdmin
+      : (isOwner || user?.role === 'ADMIN') && ['DRAFT', 'SUBMITTED'].includes(pr.status)
   const canComplete = isBuyerOrAdmin && pr.status === 'APPROVED'
   const showQuotes = pr.status !== 'DRAFT'
 

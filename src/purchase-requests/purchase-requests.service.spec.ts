@@ -20,7 +20,7 @@ describe('PurchaseRequestsService', () => {
         findUnique: jest.fn(),
         update: jest.fn(),
       },
-      purchaseRequestStatusHistory: { findMany: jest.fn() },
+      purchaseRequestStatusHistory: { findMany: jest.fn(), create: jest.fn() },
       $transaction: jest.fn((callback: any) => callback(prisma)),
     };
     service = new PurchaseRequestsService(
@@ -141,6 +141,94 @@ describe('PurchaseRequestsService', () => {
           role: 'REQUESTER',
         } as any),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('cancel', () => {
+    it('throws NotFoundException when the request does not exist', async () => {
+      prisma.purchaseRequest.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.cancel(999, { id: 1, email: 'a@a.com', role: 'REQUESTER' } as any),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('lets the owner REQUESTER cancel while still DRAFT', async () => {
+      prisma.purchaseRequest.findUnique.mockResolvedValue({
+        id: 1,
+        requesterId: 7,
+        status: 'DRAFT',
+      });
+      prisma.purchaseRequest.update.mockResolvedValue({ id: 1, status: 'CANCELLED' });
+
+      await expect(
+        service.cancel(1, { id: 7, email: 'a@a.com', role: 'REQUESTER' } as any),
+      ).resolves.toEqual({ id: 1, status: 'CANCELLED' });
+    });
+
+    it('rejects a non-owner REQUESTER cancelling a DRAFT/SUBMITTED request', async () => {
+      prisma.purchaseRequest.findUnique.mockResolvedValue({
+        id: 1,
+        requesterId: 999,
+        status: 'SUBMITTED',
+      });
+
+      await expect(
+        service.cancel(1, { id: 7, email: 'a@a.com', role: 'REQUESTER' } as any),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    // Regra nova: uma vez em IN_QUOTATION, o comprador já está negociando
+    // com fornecedores de verdade — o REQUESTER dono não pode mais
+    // cancelar sozinho, mesmo sendo o dono da solicitação.
+    it('rejects the owner REQUESTER cancelling once the request is IN_QUOTATION', async () => {
+      prisma.purchaseRequest.findUnique.mockResolvedValue({
+        id: 1,
+        requesterId: 7,
+        status: 'IN_QUOTATION',
+      });
+
+      await expect(
+        service.cancel(1, { id: 7, email: 'a@a.com', role: 'REQUESTER' } as any),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('lets a BUYER cancel once the request is IN_QUOTATION', async () => {
+      prisma.purchaseRequest.findUnique.mockResolvedValue({
+        id: 1,
+        requesterId: 7,
+        status: 'IN_QUOTATION',
+      });
+      prisma.purchaseRequest.update.mockResolvedValue({ id: 1, status: 'CANCELLED' });
+
+      await expect(
+        service.cancel(1, { id: 42, email: 'buyer@a.com', role: 'BUYER' } as any),
+      ).resolves.toEqual({ id: 1, status: 'CANCELLED' });
+    });
+
+    it('rejects a BUYER cancelling a request that has not reached IN_QUOTATION yet', async () => {
+      prisma.purchaseRequest.findUnique.mockResolvedValue({
+        id: 1,
+        requesterId: 7,
+        status: 'SUBMITTED',
+      });
+
+      await expect(
+        service.cancel(1, { id: 42, email: 'buyer@a.com', role: 'BUYER' } as any),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('lets an ADMIN cancel at any cancellable stage, regardless of ownership', async () => {
+      prisma.purchaseRequest.findUnique.mockResolvedValue({
+        id: 1,
+        requesterId: 7,
+        status: 'IN_QUOTATION',
+      });
+      prisma.purchaseRequest.update.mockResolvedValue({ id: 1, status: 'CANCELLED' });
+
+      await expect(
+        service.cancel(1, { id: 99, email: 'admin@a.com', role: 'ADMIN' } as any),
+      ).resolves.toEqual({ id: 1, status: 'CANCELLED' });
     });
   });
 });

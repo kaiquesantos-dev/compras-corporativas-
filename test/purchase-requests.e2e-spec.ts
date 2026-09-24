@@ -254,4 +254,125 @@ describe('PurchaseRequests (e2e)', () => {
       .set('Authorization', `Bearer ${requester.token}`)
       .expect(409);
   });
+
+  describe('cancel authorization once IN_QUOTATION', () => {
+    // Cria uma solicitação, submete, e registra uma cotação (via BUYER) pra
+    // levá-la até IN_QUOTATION — sem depender do CnpjLookupService real,
+    // criamos o fornecedor direto no banco.
+    async function createInQuotationPurchaseRequest(requesterToken: string, buyerToken: string) {
+      const created = await apiRequest(app)
+        .post('/purchase-requests')
+        .set('Authorization', `Bearer ${requesterToken}`)
+        .send({
+          title: 'Pedido em cotação',
+          justification: 'Justificativa qualquer aqui.',
+          items: [validItem],
+        })
+        .expect(201);
+
+      await apiRequest(app)
+        .post(`/purchase-requests/${created.body.id}/submit`)
+        .set('Authorization', `Bearer ${requesterToken}`)
+        .expect(200);
+
+      const supplier = await prisma.supplier.create({
+        data: {
+          document: `${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(0, 14).padStart(14, '0'),
+          legalName: 'Fornecedor Teste',
+        },
+      });
+
+      await apiRequest(app)
+        .post(`/purchase-requests/${created.body.id}/quotes`)
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .send({ supplierId: supplier.id, totalValue: 100 })
+        .expect(201);
+
+      return created.body.id as number;
+    }
+
+    it('rejects the owner REQUESTER cancelling once the request is IN_QUOTATION', async () => {
+      const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+      const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+      const id = await createInQuotationPurchaseRequest(requester.token, buyer.token);
+
+      await apiRequest(app)
+        .post(`/purchase-requests/${id}/cancel`)
+        .set('Authorization', `Bearer ${requester.token}`)
+        .expect(403);
+    });
+
+    it('lets a BUYER cancel once the request is IN_QUOTATION', async () => {
+      const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+      const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+      const id = await createInQuotationPurchaseRequest(requester.token, buyer.token);
+
+      const cancelled = await apiRequest(app)
+        .post(`/purchase-requests/${id}/cancel`)
+        .set('Authorization', `Bearer ${buyer.token}`)
+        .expect(200);
+      expect(cancelled.body.status).toBe('CANCELLED');
+    });
+
+    it('rejects a BUYER cancelling a request that has not reached IN_QUOTATION yet (still SUBMITTED)', async () => {
+      const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+      const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+
+      const created = await apiRequest(app)
+        .post('/purchase-requests')
+        .set('Authorization', `Bearer ${requester.token}`)
+        .send({
+          title: 'Pedido submetido',
+          justification: 'Justificativa qualquer aqui.',
+          items: [validItem],
+        })
+        .expect(201);
+      await apiRequest(app)
+        .post(`/purchase-requests/${created.body.id}/submit`)
+        .set('Authorization', `Bearer ${requester.token}`)
+        .expect(200);
+
+      await apiRequest(app)
+        .post(`/purchase-requests/${created.body.id}/cancel`)
+        .set('Authorization', `Bearer ${buyer.token}`)
+        .expect(403);
+    });
+
+    it('lets an ADMIN cancel a request that is IN_QUOTATION, regardless of ownership', async () => {
+      const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+      const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      const id = await createInQuotationPurchaseRequest(requester.token, buyer.token);
+
+      const cancelled = await apiRequest(app)
+        .post(`/purchase-requests/${id}/cancel`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .expect(200);
+      expect(cancelled.body.status).toBe('CANCELLED');
+    });
+
+    it('still lets the owner REQUESTER cancel while the request is only SUBMITTED (not yet IN_QUOTATION)', async () => {
+      const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+
+      const created = await apiRequest(app)
+        .post('/purchase-requests')
+        .set('Authorization', `Bearer ${requester.token}`)
+        .send({
+          title: 'Pedido submetido',
+          justification: 'Justificativa qualquer aqui.',
+          items: [validItem],
+        })
+        .expect(201);
+      await apiRequest(app)
+        .post(`/purchase-requests/${created.body.id}/submit`)
+        .set('Authorization', `Bearer ${requester.token}`)
+        .expect(200);
+
+      const cancelled = await apiRequest(app)
+        .post(`/purchase-requests/${created.body.id}/cancel`)
+        .set('Authorization', `Bearer ${requester.token}`)
+        .expect(200);
+      expect(cancelled.body.status).toBe('CANCELLED');
+    });
+  });
 });

@@ -154,11 +154,20 @@ export class PurchaseRequestsController {
   @Post(':id/cancel')
   @HttpCode(200)
   @UseGuards(RolesGuard)
-  @Roles('REQUESTER', 'ADMIN')
+  @Roles('REQUESTER', 'BUYER', 'ADMIN')
   @ApiOperation({
     summary: 'Cancelar solicitação',
     description:
-      '**Papéis permitidos:** REQUESTER, ADMIN\n\nPermitido a partir de DRAFT, SUBMITTED ou IN_QUOTATION.',
+      '**Papéis permitidos:** REQUESTER dono (só em DRAFT/SUBMITTED), BUYER, ADMIN\n\n' +
+      'Permitido a partir de DRAFT, SUBMITTED ou IN_QUOTATION. A partir de IN_QUOTATION ' +
+      '(o comprador já está negociando com fornecedores), o REQUESTER dono deixa de poder ' +
+      'cancelar sozinho — a decisão passa a exigir um BUYER ou ADMIN, para não descartar o ' +
+      'trabalho de cotação em andamento sem quem está conduzindo o processo ter voz nisso.',
+  })
+  @ApiResponse({
+    status: 403,
+    description:
+      'REQUESTER tentando cancelar uma solicitação já em IN_QUOTATION, ou BUYER tentando cancelar uma que ainda não chegou lá.',
   })
   @ApiResponse({
     status: 409,
