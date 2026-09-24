@@ -51,12 +51,13 @@ cp .env.example .env
 |---|---|
 | `NODE_ENV` | `development`, `production` ou `test`. Controla, entre outras coisas, o idioma da documentação Swagger (`/docs`). |
 | `DATABASE_URL` | String de conexão do PostgreSQL de desenvolvimento (porta `5434`). |
-| `JWT_SECRET` | Segredo usado para assinar/validar os tokens JWT. Nunca reutilize o valor de exemplo em produção. |
+| `JWT_SECRET` | Segredo usado para assinar/validar os tokens JWT. **Mínimo de 32 caracteres** (a aplicação recusa subir com um valor mais curto) — nunca reutilize o valor de exemplo em produção. |
 | `JWT_EXPIRES_IN` | Tempo de expiração do token (ex: `1d`). |
-| `API_KEY` | Chave exigida no header `X-API-KEY` em **todas** as rotas, incluindo `/auth/login`. |
+| `API_KEY` | Chave exigida no header `X-API-KEY` em **todas** as rotas, incluindo `/auth/login`. Mínimo de 32 caracteres, mesma regra do `JWT_SECRET`. |
 | `PORT` | Porta em que a API sobe (padrão `3000`). |
 | `CNPJ_API_BASE_URL` | URL base da BrasilAPI usada para consultar CNPJ de fornecedores. |
 | `CNPJ_API_TIMEOUT_MS` | Timeout (em ms) para a consulta de CNPJ antes de considerar a integração externa indisponível. |
+| `CORS_ORIGIN` | Origens (separadas por vírgula) autorizadas a chamar a API via CORS. Opcional — sem ela, cai no default `http://localhost:5173` (o frontend em dev). Em produção, aponte pro domínio real do frontend; a API nunca libera "qualquer origem". |
 
 Para os testes automatizados, copie também `.env.test.example` para `.env.test` (já aponta para o banco de teste na porta `5433`).
 
@@ -144,6 +145,9 @@ O seed também cria 5 departamentos, 6 fornecedores e 15 solicitações de compr
 - Autorização por papel: `REQUESTER`, `BUYER`, `APPROVER`, `ADMIN` — ver a matriz de permissões na tabela de endpoints abaixo.
 - Senhas nunca são retornadas em nenhuma resposta (nem nas relações aninhadas, como `requester` dentro de uma solicitação de compra).
 - `.env`/`.env.test` nunca são versionados (estão no `.gitignore`); apenas `.env.example`/`.env.test.example`, com placeholders.
+- CORS restrito às origens de `CORS_ORIGIN` (nunca "qualquer origem") — ver seção de configuração do `.env`.
+- `JWT_SECRET`/`API_KEY` exigem no mínimo 32 caracteres; a aplicação recusa subir com um valor mais curto.
+- Delegação de acesso ADMIN (`isAdminDelegate`) tem proteções próprias contra escalonamento de privilégio — ver a nota na tabela de endpoints de Usuários.
 
 ### Exemplo de requisição de login
 
@@ -183,6 +187,7 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 | Método | URL | Auth | Body | Respostas |
 |---|---|---|---|---|
 | POST | `/auth/login` | público | `{ email, password }` | `200` token · `400` inválido · `401` credenciais erradas |
+| GET | `/auth/me` | - | — | `200` `{ id, email, role, isAdminDelegate }` do usuário autenticado, revalidado no banco a cada chamada (útil pro frontend perceber uma delegação de acesso concedida/revogada sem precisar de novo login) · `401` |
 
 ### Usuários (`/users`) — somente ADMIN
 
@@ -191,8 +196,11 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 | POST | `/users` | `{ name, email, password, role, departmentId? }` | `201` · `400` · `401` · `403` · `404` depto inexistente · `409` email duplicado |
 | GET | `/users?page=&pageSize=&sortBy=&sortOrder=` | — | `200` |
 | GET | `/users/:id` | — | `200` · `404` |
-| PATCH | `/users/:id` | campos acima, todos opcionais | `200` · `400` · `404` |
-| DELETE | `/users/:id` | — | `200` · `404` · `409` se houver vínculos |
+| PATCH | `/users/:id` | campos acima, todos opcionais | `200` · `400` · `403` se o alvo é ADMIN e quem chama só tem acesso delegado (não real) · `404` |
+| PATCH | `/users/:id/admin-delegate` | `{ granted: boolean }` | Concede/revoga acesso ADMIN temporário a um APPROVER (ex: cobrir férias do admin) — `200` · `400` alvo não é APPROVER · `403` só um ADMIN real pode chamar isto (um delegado não pode criar outros delegados) · `404` |
+| DELETE | `/users/:id` | — | `200` · `403` se o alvo é ADMIN e quem chama só tem acesso delegado · `404` · `409` se houver vínculos |
+
+> **Nota sobre `isAdminDelegate`:** um usuário com acesso ADMIN só por delegação passa em qualquer checagem de papel que exija `ADMIN`, mas **não** é tratado como ADMIN de verdade para duas ações: conceder/revogar uma delegação (evita uma cadeia de escalonamento de privilégio descontrolada) e alterar/remover a conta de outro ADMIN (evita que um delegado tranque o admin real fora do sistema).
 
 ### Departamentos (`/departments`)
 
@@ -232,9 +240,9 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 
 | Método | URL | Auth | Body | Respostas |
 |---|---|---|---|---|
-| POST | `/purchase-requests/:id/quotes` | BUYER, ADMIN | `{ supplierId, totalValue, validUntil?, notes? }` | `201` · `404` solicitação/fornecedor · `409` fora de SUBMITTED/IN_QUOTATION |
+| POST | `/purchase-requests/:id/quotes` | BUYER, ADMIN | `{ supplierId, totalValue, validUntil?, notes? }` (JSON) **ou** `multipart/form-data` com os mesmos campos + `file` opcional (PDF/PNG/JPEG, até 5MB) — anexa a proposta já na criação, sem precisar de uma segunda chamada | `201` · `400` dados/arquivo inválido · `404` solicitação/fornecedor · `409` fora de SUBMITTED/IN_QUOTATION · `413` arquivo maior que 5MB |
 | GET | `/purchase-requests/:id/quotes` | - | — | `200` |
-| POST | `/purchase-requests/:id/quotes/:quoteId/proposal` | BUYER, ADMIN | `multipart/form-data`, campo `file` (PDF/PNG/JPEG, até 5MB) | `201` · `400` arquivo ausente/inválido/grande · `409` fora de SUBMITTED/IN_QUOTATION |
+| POST | `/purchase-requests/:id/quotes/:quoteId/proposal` | BUYER, ADMIN | `multipart/form-data`, campo `file` (PDF/PNG/JPEG, até 5MB) | `201` · `400` arquivo ausente/tipo ou conteúdo não permitido · `409` fora de SUBMITTED/IN_QUOTATION · `413` arquivo maior que 5MB |
 | GET | `/purchase-requests/:id/quotes/:quoteId/proposal` | - | — | `200` binário · `404` sem arquivo |
 | POST | `/purchase-requests/:id/quotes/:quoteId/select` | BUYER, ADMIN | — | `200` · `409` fora de IN_QUOTATION |
 
