@@ -18,10 +18,14 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Painel', to: '/', roles: ['REQUESTER', 'BUYER', 'APPROVER', 'ADMIN'] },
   { label: 'Solicitações', to: '/purchase-requests', roles: ['REQUESTER', 'BUYER', 'APPROVER', 'ADMIN'] },
-  { label: 'Fornecedores', to: '/suppliers', roles: ['BUYER', 'ADMIN'] },
+  // GET /suppliers e GET /departments são liberados pra qualquer papel
+  // autenticado no backend — só as ações de escrita são restritas (BUYER/
+  // ADMIN e ADMIN, respectivamente), e essa restrição é aplicada dentro de
+  // cada página, não escondendo o item do menu inteiro.
+  { label: 'Fornecedores', to: '/suppliers', roles: ['REQUESTER', 'BUYER', 'APPROVER', 'ADMIN'] },
   { label: 'Aprovações', to: '/approvals', roles: ['APPROVER', 'ADMIN'] },
   { label: 'Usuários', to: '/users', roles: ['ADMIN'] },
-  { label: 'Departamentos', to: '/departments', roles: ['ADMIN'] },
+  { label: 'Departamentos', to: '/departments', roles: ['REQUESTER', 'BUYER', 'APPROVER', 'ADMIN'] },
 ]
 
 const roleLabels: Record<Role, string> = {

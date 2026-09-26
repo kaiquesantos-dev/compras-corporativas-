@@ -92,6 +92,16 @@ export interface PurchaseRequestStatusHistoryEntry {
   note: string | null
 }
 
+export interface Approval {
+  id: number
+  purchaseRequestId: number
+  approverId: number
+  approver: { id: number; name: string }
+  decision: 'APPROVED' | 'REJECTED'
+  comment: string | null
+  decidedAt: string
+}
+
 export interface Quote {
   id: number
   supplierId: number

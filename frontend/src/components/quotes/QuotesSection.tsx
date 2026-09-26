@@ -15,6 +15,9 @@ import { TextField } from '../ui/TextField'
 import { Select } from '../ui/Select'
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+// validUntil é uma data pura gravada como meia-noite UTC — formatar no fuso
+// local (UTC-3) mostraria o dia anterior.
+const validityFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'UTC' })
 
 const statusLabels: Record<'RECEIVED' | 'SELECTED' | 'DISCARDED', string> = {
   RECEIVED: 'Recebida',
@@ -87,6 +90,7 @@ export function QuotesSection({
               purchaseRequestId={purchaseRequestId}
               quote={quote}
               canSelect={canSelect}
+              canUpload={canAddQuote}
               onSelect={() => selectMutation.mutate(quote.id)}
               selecting={selectMutation.isPending && selectMutation.variables === quote.id}
             />
@@ -112,17 +116,24 @@ function QuoteRow({
   purchaseRequestId,
   quote,
   canSelect,
+  canUpload,
   onSelect,
   selecting,
 }: {
   purchaseRequestId: number
   quote: import('../../api/types').Quote
   canSelect: boolean
+  canUpload: boolean
   onSelect: () => void
   selecting: boolean
 }) {
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Mesma regra do backend: válida até o fim do dia informado. Uma cotação
+  // vencida não pode ser escolhida como vencedora (o backend barra com 409).
+  const expired = Boolean(
+    quote.validUntil && quote.validUntil.slice(0, 10) < new Date().toISOString().slice(0, 10),
+  )
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadQuoteProposal(purchaseRequestId, quote.id, file),
@@ -143,6 +154,8 @@ function QuoteRow({
         <p className="font-semibold text-ink">{quote.supplier?.legalName ?? `Fornecedor #${quote.supplierId}`}</p>
         <p className="text-sm text-ink-muted">
           {currencyFormatter.format(Number(quote.totalValue))} · {statusLabels[quote.status]}
+          {expired && <span className="font-semibold text-accent-text"> · Vencida</span>}
+          {quote.validUntil && !expired && ` · válida até ${validityFormatter.format(new Date(quote.validUntil))}`}
         </p>
         {uploadMutation.isError && (
           <p className="text-xs text-accent-text">
@@ -163,24 +176,26 @@ function QuoteRow({
             Baixar proposta
           </button>
         ) : (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadMutation.isPending}
-              className="text-xs font-semibold text-ink-muted uppercase hover:text-accent-text"
-            >
-              {uploadMutation.isPending ? 'Enviando...' : 'Anexar proposta'}
-            </button>
-          </>
+          canUpload && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadMutation.isPending}
+                className="text-xs font-semibold text-ink-muted uppercase hover:text-accent-text"
+              >
+                {uploadMutation.isPending ? 'Enviando...' : 'Anexar proposta'}
+              </button>
+            </>
+          )
         )}
-        {canSelect && quote.status === 'RECEIVED' && (
+        {canSelect && quote.status === 'RECEIVED' && !expired && (
           <Button variant="outline" onClick={onSelect} disabled={selecting}>
             {selecting ? 'Selecionando...' : 'Selecionar vencedora'}
           </Button>
@@ -202,9 +217,18 @@ function NewQuoteForm({
   const [supplierId, setSupplierId] = useState('')
   const [totalValue, setTotalValue] = useState('')
   const [notes, setNotes] = useState('')
+  const [validUntil, setValidUntil] = useState('')
+  const today = new Date().toISOString().slice(0, 10)
   const [file, setFile] = useState<File | null>(null)
 
-  const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => fetchSuppliers() })
+  // Só fornecedores ativos aqui: um inativo (tipicamente cadastrado com
+  // CNPJ errado, ou que parou de operar com a empresa) não pode receber
+  // cotação nova — o backend já bloqueia isso (409), mas nem faz sentido
+  // deixar a pessoa escolher uma opção que vai falhar.
+  const { data: suppliers } = useQuery({
+    queryKey: ['suppliers', 'active'],
+    queryFn: () => fetchSuppliers(1, { isActive: true, pageSize: 100 }),
+  })
 
   const createMutation = useMutation({
     mutationFn: createQuote,
@@ -222,6 +246,7 @@ function NewQuoteForm({
       supplierId: Number(supplierId),
       totalValue: Number(totalValue),
       notes: notes || undefined,
+      validUntil: validUntil || undefined,
       file: file ?? undefined,
     })
   }
@@ -240,11 +265,26 @@ function NewQuoteForm({
         type="number"
         step="0.01"
         min="0.01"
+        max={1000000000}
         value={totalValue}
         onChange={(e) => setTotalValue(e.target.value)}
         required
       />
-      <TextField label="Observações (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
+      <TextField
+        label="Válida até (opcional)"
+        type="date"
+        min={today}
+        value={validUntil}
+        onChange={(e) => setValidUntil(e.target.value)}
+        hint="Até quando o fornecedor garante este preço. Cotação vencida não pode ser escolhida como vencedora."
+      />
+      <TextField
+        label="Observações (opcional)"
+        multiline
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        maxLength={1000}
+      />
 
       <div>
         <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-muted uppercase">

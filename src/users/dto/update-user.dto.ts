@@ -42,9 +42,16 @@ export class UpdateUserDto {
   @IsEnum(Role)
   role?: Role;
 
-  @ApiPropertyOptional({ example: 2 })
+  @ApiPropertyOptional({
+    example: 2,
+    nullable: true,
+    description:
+      'Departamento do usuário. Envie null para desvincular (não permitido para REQUESTER).',
+  })
+  // @IsOptional deixa passar tanto undefined (campo ausente: não mexe no
+  // departamento) quanto null (desvincular explicitamente).
   @IsOptional()
   @IsInt()
   @Min(1)
-  departmentId?: number;
+  departmentId?: number | null;
 }

@@ -52,7 +52,11 @@ export function App() {
         <Route
           path="/suppliers"
           element={
-            <ProtectedRoute roles={['BUYER', 'ADMIN']}>
+            // GET /suppliers é liberado pra qualquer papel autenticado no
+            // backend — só as ações de escrita (criar/editar/remover) são
+            // restritas a BUYER/ADMIN, e essa restrição é gated dentro da
+            // própria SuppliersPage, não na rota.
+            <ProtectedRoute>
               <SuppliersPage />
             </ProtectedRoute>
           }
@@ -76,7 +80,9 @@ export function App() {
         <Route
           path="/departments"
           element={
-            <ProtectedRoute roles={['ADMIN']}>
+            // Mesmo caso dos fornecedores: GET /departments é liberado pra
+            // todos, só escrita é ADMIN — gated dentro da DepartmentsPage.
+            <ProtectedRoute>
               <DepartmentsPage />
             </ProtectedRoute>
           }

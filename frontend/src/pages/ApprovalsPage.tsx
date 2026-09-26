@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { useConfirm } from '../hooks/confirm-context'
+import { useAuthStore } from '../store/auth-store'
 import type { PurchaseRequest } from '../api/types'
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' })
@@ -24,6 +25,7 @@ type Tab = 'pending' | 'history'
 export function ApprovalsPage() {
   const queryClient = useQueryClient()
   const confirm = useConfirm()
+  const currentUserId = useAuthStore((state) => state.user?.id)
   const [comments, setComments] = useState<Record<number, string>>({})
   const [tab, setTab] = useState<Tab>('pending')
 
@@ -144,8 +146,10 @@ export function ApprovalsPage() {
 
                 <TextField
                   label="Comentário (opcional)"
+                  multiline
                   value={comments[pr.id] ?? ''}
                   onChange={(e) => setComments((current) => ({ ...current, [pr.id]: e.target.value }))}
+                  maxLength={1000}
                 />
 
                 {decideMutation.isError && decideMutation.variables?.id === pr.id && (
@@ -154,18 +158,26 @@ export function ApprovalsPage() {
                   </p>
                 )}
 
-                <div className="mt-4 flex gap-3">
-                  <Button onClick={() => handleDecide(pr, 'APPROVED')} disabled={decideMutation.isPending}>
-                    Aprovar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleDecide(pr, 'REJECTED')}
-                    disabled={decideMutation.isPending}
-                  >
-                    Rejeitar
-                  </Button>
-                </div>
+                {/* Segregação de funções: quem pediu a compra não decide
+                    sobre ela (o backend também barra com 403). */}
+                {pr.requesterId === currentUserId ? (
+                  <p className="mt-4 text-sm text-ink-muted">
+                    Você criou esta solicitação, então outro aprovador precisa decidir sobre ela.
+                  </p>
+                ) : (
+                  <div className="mt-4 flex gap-3">
+                    <Button onClick={() => handleDecide(pr, 'APPROVED')} disabled={decideMutation.isPending}>
+                      Aprovar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleDecide(pr, 'REJECTED')}
+                      disabled={decideMutation.isPending}
+                    >
+                      Rejeitar
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

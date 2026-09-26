@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -26,6 +27,16 @@ export class ApprovalsService {
       purchaseRequestId,
       user,
     );
+
+    // Segregação de funções: quem pediu a compra nunca aprova a própria
+    // compra. Só é alcançável quando o solicitante é promovido a APPROVER
+    // depois de criar a solicitação, mas é justamente o controle antifraude
+    // mais básico de um fluxo de compras.
+    if (pr.requesterId === user.id) {
+      throw new ForbiddenException(
+        'Você não pode aprovar ou rejeitar uma solicitação criada por você mesmo.',
+      );
+    }
 
     if (pr.status !== 'PENDING_APPROVAL') {
       throw new ConflictException(
@@ -58,8 +69,11 @@ export class ApprovalsService {
 
   async findOne(purchaseRequestId: number, user: AuthenticatedUser) {
     await this.purchaseRequestsService.findOne(purchaseRequestId, user);
+    // include approver: sem isso, a resposta só trazia approverId (um número
+    // cru) — o frontend não tinha como mostrar QUEM decidiu, só o ID.
     const approval = await this.prisma.approval.findUnique({
       where: { purchaseRequestId },
+      include: { approver: { select: { id: true, name: true } } },
     });
     if (!approval) {
       throw new NotFoundException(

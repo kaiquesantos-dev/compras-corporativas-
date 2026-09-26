@@ -7,16 +7,20 @@ import {
   Length,
   MaxLength,
 } from 'class-validator';
-import { IsCnpj } from '../../common/validators/is-cnpj.validator';
 
 // Igual ao CreateSupplierDto, mas tudo opcional (atualização parcial), com
 // o campo extra "isActive" pra ativar/desativar o fornecedor sem apagá-lo.
+//
+// "document" (CNPJ) propositalmente NÃO existe aqui: é a identidade legal do
+// fornecedor (@unique no schema) e trava depois do cadastro. Editá-lo
+// silenciosamente reescreveria de qual empresa são as cotações já
+// registradas para este fornecedor — se o CNPJ foi cadastrado errado, o
+// certo é desativar este registro (isActive: false, mantém o histórico) e
+// cadastrar um fornecedor novo com o CNPJ correto, nunca "corrigir" o
+// existente. Como o ValidationPipe global usa forbidNonWhitelisted: true,
+// omitir o campo aqui faz o backend REJEITAR (400) qualquer tentativa de
+// mandar "document" neste endpoint, não apenas ignorá-lo.
 export class UpdateSupplierDto {
-  @ApiPropertyOptional({ example: '19.131.243/0001-97' })
-  @IsOptional()
-  @IsCnpj()
-  document?: string;
-
   @ApiPropertyOptional({ example: 'Fornecedor Exemplo LTDA' })
   @IsOptional()
   @IsString()

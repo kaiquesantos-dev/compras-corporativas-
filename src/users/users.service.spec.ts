@@ -41,7 +41,7 @@ describe('UsersService', () => {
         password: 'senha123',
         role: 'REQUESTER',
         departmentId: 1,
-      });
+      }, REAL_ADMIN);
 
       expect(result.password).not.toBe('senha123');
       expect(await bcrypt.compare('senha123', result.password)).toBe(true);
@@ -57,8 +57,29 @@ describe('UsersService', () => {
           password: 'senha123',
           role: 'REQUESTER',
           departmentId: 999,
-        }),
+        }, REAL_ADMIN),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    // Delegação é TEMPORÁRIA: se o delegado pudesse criar um ADMIN de verdade,
+    // o acesso sobreviveria à revogação.
+    it('blocks an admin-delegate from creating an ADMIN account', async () => {
+      await expect(
+        service.create(
+          { name: 'X', email: 'x@teste.com', password: 'senha123', role: 'ADMIN' },
+          DELEGATE,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('blocks an admin-delegate from promoting a user to ADMIN', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 7, role: 'BUYER' });
+
+      await expect(
+        service.update(7, { role: 'ADMIN' }, DELEGATE),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.user.update).not.toHaveBeenCalled();
     });
   });
 
@@ -71,7 +92,7 @@ describe('UsersService', () => {
 
   describe('update', () => {
     it('hashes the new password when provided', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 1, name: 'Maria', role: 'REQUESTER' });
+      prisma.user.findUnique.mockResolvedValue({ id: 1, name: 'Maria', role: 'REQUESTER', departmentId: 5 });
       prisma.user.update.mockImplementation(({ data }: any) =>
         Promise.resolve({ id: 1, ...data }),
       );
@@ -86,6 +107,7 @@ describe('UsersService', () => {
         id: 1,
         role: 'APPROVER',
         isAdminDelegate: true,
+        departmentId: 5,
       });
       prisma.user.update.mockImplementation(({ data }: any) =>
         Promise.resolve({ id: 1, ...data }),

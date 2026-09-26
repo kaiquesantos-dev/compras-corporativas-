@@ -197,6 +197,83 @@ describe('PurchaseRequests (e2e)', () => {
       .expect(403);
   });
 
+  it('lets the owner edit their own DRAFT request', async () => {
+    const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+    const created = await apiRequest(app)
+      .post('/purchase-requests')
+      .set('Authorization', `Bearer ${requester.token}`)
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
+      .expect(201);
+
+    const updated = await apiRequest(app)
+      .patch(`/purchase-requests/${created.body.id}`)
+      .set('Authorization', `Bearer ${requester.token}`)
+      .send({ title: 'Pedido revisado' })
+      .expect(200);
+
+    expect(updated.body.title).toBe('Pedido revisado');
+  });
+
+  it("returns 403 when a different requester tries to edit someone else's DRAFT", async () => {
+    const requesterA = await seedUserAndLogin(app, prisma, 'REQUESTER');
+    const requesterB = await seedUserAndLogin(app, prisma, 'REQUESTER');
+    const created = await apiRequest(app)
+      .post('/purchase-requests')
+      .set('Authorization', `Bearer ${requesterA.token}`)
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
+      .expect(201);
+
+    await apiRequest(app)
+      .patch(`/purchase-requests/${created.body.id}`)
+      .set('Authorization', `Bearer ${requesterB.token}`)
+      .send({ title: 'Tentativa de invasão' })
+      .expect(403);
+  });
+
+  // Regressão: um usuário promovido de REQUESTER para outro papel (ex:
+  // BUYER) depois de já ter uma solicitação em DRAFT continua podendo
+  // editar/submeter o que já era dele — a autorização aqui é "é o dono",
+  // não "tem o papel REQUESTER agora". Sem isso, o rascunho ficava travado
+  // para sempre (nem o dono, nem ninguém mais, conseguia mexer nele).
+  it('lets the owner submit/edit their old DRAFT even after being promoted away from REQUESTER', async () => {
+    const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+    const created = await apiRequest(app)
+      .post('/purchase-requests')
+      .set('Authorization', `Bearer ${requester.token}`)
+      .send({
+        title: 'Pedido antes da promoção',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
+      .expect(201);
+
+    await prisma.user.update({
+      where: { id: requester.id },
+      data: { role: 'BUYER' },
+    });
+
+    await apiRequest(app)
+      .patch(`/purchase-requests/${created.body.id}`)
+      .set('Authorization', `Bearer ${requester.token}`)
+      .send({ title: 'Pedido revisado após promoção' })
+      .expect(200);
+
+    const submitted = await apiRequest(app)
+      .post(`/purchase-requests/${created.body.id}/submit`)
+      .set('Authorization', `Bearer ${requester.token}`)
+      .expect(200);
+
+    expect(submitted.body.status).toBe('SUBMITTED');
+  });
+
   it('records a status history entry after submitting', async () => {
     const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
 
@@ -349,6 +426,46 @@ describe('PurchaseRequests (e2e)', () => {
         .set('Authorization', `Bearer ${admin.token}`)
         .expect(200);
       expect(cancelled.body.status).toBe('CANCELLED');
+    });
+
+    // Estado que não permite mais cancelar é 409 pra todos que enxergam a
+    // solicitação — antes o comprador recebia um 403 falso ("não tem acesso").
+    it('returns 409 (not a misleading 403) when a BUYER tries to cancel a request already past IN_QUOTATION', async () => {
+      const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+      const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+      const id = await createInQuotationPurchaseRequest(requester.token, buyer.token);
+      const quotes = await apiRequest(app)
+        .get(`/purchase-requests/${id}/quotes`)
+        .set('Authorization', `Bearer ${buyer.token}`)
+        .expect(200);
+      await apiRequest(app)
+        .post(`/purchase-requests/${id}/quotes/${quotes.body[0].id}/select`)
+        .set('Authorization', `Bearer ${buyer.token}`)
+        .expect(200);
+
+      const response = await apiRequest(app)
+        .post(`/purchase-requests/${id}/cancel`)
+        .set('Authorization', `Bearer ${buyer.token}`)
+        .expect(409);
+      expect(response.body.message).toContain('Aguardando aprovação');
+    });
+
+    // Um APPROVER com acesso ADMIN delegado cobre o admin por completo —
+    // antes ele levava 403 aqui mesmo sendo admin por delegação.
+    it('lets an APPROVER with delegated ADMIN access cancel like an ADMIN', async () => {
+      const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+      const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+      const delegate = await seedUserAndLogin(app, prisma, 'APPROVER');
+      await prisma.user.update({
+        where: { id: delegate.id },
+        data: { isAdminDelegate: true },
+      });
+      const id = await createInQuotationPurchaseRequest(requester.token, buyer.token);
+
+      await apiRequest(app)
+        .post(`/purchase-requests/${id}/cancel`)
+        .set('Authorization', `Bearer ${delegate.token}`)
+        .expect(200);
     });
 
     it('still lets the owner REQUESTER cancel while the request is only SUBMITTED (not yet IN_QUOTATION)', async () => {

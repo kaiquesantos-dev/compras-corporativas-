@@ -218,4 +218,50 @@ describe('Approvals (e2e) and full lifecycle', () => {
       .send({ decision: 'APPROVED' })
       .expect(409);
   });
+
+  // Segregação de funções: um solicitante promovido a APPROVER não pode
+  // decidir sobre a solicitação que ele mesmo criou.
+  it('returns 403 when the approver is the requester of the purchase request', async () => {
+    const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+
+    const created = await apiRequest(app)
+      .post('/purchase-requests')
+      .set('Authorization', `Bearer ${requester.token}`)
+      .send({
+        title: 'Pedido',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
+      .expect(201);
+    await apiRequest(app)
+      .post(`/purchase-requests/${created.body.id}/submit`)
+      .set('Authorization', `Bearer ${requester.token}`)
+      .expect(200);
+    const supplier = await apiRequest(app)
+      .post('/suppliers')
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ document: CNPJ_A })
+      .expect(201);
+    const quote = await apiRequest(app)
+      .post(`/purchase-requests/${created.body.id}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ supplierId: supplier.body.id, totalValue: 9000.0 })
+      .expect(201);
+    await apiRequest(app)
+      .post(`/purchase-requests/${created.body.id}/quotes/${quote.body.id}/select`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .expect(200);
+
+    await prisma.user.update({
+      where: { id: requester.id },
+      data: { role: 'APPROVER' },
+    });
+
+    await apiRequest(app)
+      .post(`/purchase-requests/${created.body.id}/approval`)
+      .set('Authorization', `Bearer ${requester.token}`)
+      .send({ decision: 'APPROVED' })
+      .expect(403);
+  });
 });

@@ -1,8 +1,10 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPaginationParams } from '../common/pagination/paginate';
 import { onlyDigits } from '../common/validators/is-cnpj.validator';
@@ -81,42 +83,26 @@ export class SuppliersService {
     return supplier;
   }
 
+  // O CNPJ (document) NÃO está em UpdateSupplierDto de propósito — é a
+  // identidade legal do fornecedor e trava depois do cadastro (ver o
+  // comentário no próprio DTO). Por isso este update() nunca mais precisa
+  // reconsultar a BrasilAPI: sem CNPJ mudando, não há nada novo pra
+  // enriquecer automaticamente, então o método fica bem mais simples que o
+  // create() — só aplica os campos que vieram no body.
   async update(id: number, dto: UpdateSupplierDto) {
     await this.findOne(id);
-
-    // Só refaz a consulta de CNPJ se o documento estiver sendo alterado —
-    // não faz sentido re-consultar toda vez que só o telefone muda, por
-    // exemplo.
-    const enrichment = dto.document
-      ? await this.cnpjLookupService.lookup(dto.document)
-      : null;
-
-    // Mesma regra do create(): se o documento está mudando e nem o body nem
-    // a consulta de CNPJ trazem uma razão social, não dá pra seguir. Sem
-    // esta checagem, "legalName: dto.legalName ?? enrichment?.legalName ??
-    // undefined" virava undefined e o Prisma simplesmente NÃO tocava o
-    // campo — o registro ficava com o CNPJ novo e o nome da empresa antiga,
-    // silenciosamente incoerentes.
-    if (dto.document && !dto.legalName && !enrichment?.legalName) {
-      throw new BadRequestException(
-        'Não foi possível validar o novo CNPJ (serviço indisponível ou CNPJ inexistente). Informe "legalName" manualmente para prosseguir.',
-      );
-    }
 
     return this.prisma.supplier.update({
       where: { id },
       data: {
-        document: dto.document ? onlyDigits(dto.document) : undefined,
-        legalName: dto.legalName ?? enrichment?.legalName ?? undefined,
-        tradeName: dto.tradeName ?? enrichment?.tradeName ?? undefined,
+        legalName: dto.legalName,
+        tradeName: dto.tradeName,
         email: dto.email,
         phone: dto.phone,
-        zipCode: dto.zipCode ?? enrichment?.zipCode ?? undefined,
-        street: dto.street ?? enrichment?.street ?? undefined,
-        city: dto.city ?? enrichment?.city ?? undefined,
-        state: dto.state ?? enrichment?.state ?? undefined,
-        federalRegistrationStatus:
-          enrichment?.federalRegistrationStatus ?? undefined,
+        zipCode: dto.zipCode,
+        street: dto.street,
+        city: dto.city,
+        state: dto.state,
         isActive: dto.isActive,
       },
     });
@@ -124,10 +110,23 @@ export class SuppliersService {
 
   async remove(id: number) {
     await this.findOne(id);
-    // Se este fornecedor ainda tiver cotações vinculadas, o Prisma recusa a
-    // exclusão (erro P2003) e o PrismaExceptionFilter global já transforma
-    // isso em 409 automaticamente — não precisamos checar isso na mão aqui.
-    await this.prisma.supplier.delete({ where: { id } });
+    try {
+      await this.prisma.supplier.delete({ where: { id } });
+    } catch (err) {
+      // P2003: este fornecedor ainda tem cotações vinculadas. Sugerimos
+      // desativar (isActive: false) em vez de excluir — a exclusão de um
+      // registro com histórico de cotações apagaria dados de compras já
+      // realizadas, então normalmente nem deveria ser a ação desejada.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2003'
+      ) {
+        throw new ConflictException(
+          'Não é possível excluir este fornecedor: ele possui cotações vinculadas a solicitações de compra. Marque-o como inativo em vez de excluir, para preservar o histórico.',
+        );
+      }
+      throw err;
+    }
     return { message: 'Fornecedor removido com sucesso.' };
   }
 }

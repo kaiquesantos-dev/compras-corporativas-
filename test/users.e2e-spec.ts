@@ -367,4 +367,113 @@ describe('Users (e2e)', () => {
         .expect(403);
     });
   });
+
+  describe('regras que protegem o próprio sistema', () => {
+    it('blocks an admin from changing their own role (403)', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      await apiRequest(app)
+        .patch(`/users/${admin.id}`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ role: 'REQUESTER' })
+        .expect(403);
+    });
+
+    it('still lets an admin edit their own name (200)', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      await apiRequest(app)
+        .patch(`/users/${admin.id}`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ name: 'Novo nome do admin' })
+        .expect(200);
+    });
+
+    it('blocks an admin from deleting their own account (403)', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      await apiRequest(app)
+        .delete(`/users/${admin.id}`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .expect(403);
+    });
+
+    it('rejects creating a REQUESTER without a department (400)', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      await apiRequest(app)
+        .post('/users')
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({
+          name: 'Sem Depto',
+          email: 'semdepto@teste.com',
+          password: 'senha123',
+          role: 'REQUESTER',
+        })
+        .expect(400);
+    });
+
+    it('blocks an admin-delegate from creating an ADMIN account (403)', async () => {
+      const delegate = await seedUserAndLogin(app, prisma, 'APPROVER');
+      await prisma.user.update({
+        where: { id: delegate.id },
+        data: { isAdminDelegate: true },
+      });
+      await apiRequest(app)
+        .post('/users')
+        .set('Authorization', `Bearer ${delegate.token}`)
+        .send({
+          name: 'Admin Clandestino',
+          email: 'clandestino@teste.com',
+          password: 'senha123',
+          role: 'ADMIN',
+        })
+        .expect(403);
+    });
+
+    it('blocks an admin-delegate from promoting a user to ADMIN (403)', async () => {
+      const delegate = await seedUserAndLogin(app, prisma, 'APPROVER');
+      const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+      await prisma.user.update({
+        where: { id: delegate.id },
+        data: { isAdminDelegate: true },
+      });
+      await apiRequest(app)
+        .patch(`/users/${buyer.id}`)
+        .set('Authorization', `Bearer ${delegate.token}`)
+        .send({ role: 'ADMIN' })
+        .expect(403);
+    });
+
+    it('clears the department of a non-REQUESTER when departmentId is null', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+      const response = await apiRequest(app)
+        .patch(`/users/${buyer.id}`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ departmentId: null })
+        .expect(200);
+      expect(response.body.departmentId).toBeNull();
+    });
+
+    it('rejects clearing the department of a REQUESTER (400)', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+      await apiRequest(app)
+        .patch(`/users/${requester.id}`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ departmentId: null })
+        .expect(400);
+    });
+
+    it('still lets creating a BUYER without a department (201)', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      await apiRequest(app)
+        .post('/users')
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({
+          name: 'Comprador Sem Depto',
+          email: 'buyer-semdepto@teste.com',
+          password: 'senha123',
+          role: 'BUYER',
+        })
+        .expect(201);
+    });
+  });
 });

@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { buildPaginationParams } from '../common/pagination/paginate';
@@ -49,11 +50,35 @@ export class DepartmentsService {
 
   async remove(id: number) {
     await this.findOne(id);
-    // Não checamos aqui manualmente se existem usuários/solicitações
-    // vinculados ao departamento de propósito: se houver um vínculo que
-    // impede a exclusão, o Prisma lança o erro P2003 (chave estrangeira) e
-    // o PrismaExceptionFilter global já converte isso em 409 sozinho.
-    await this.prisma.department.delete({ where: { id } });
+    // User.departmentId é opcional (ON DELETE SET NULL), então o banco NÃO
+    // barraria a exclusão por causa dos usuários — eles só perderiam o
+    // departamento em silêncio, e um REQUESTER sem departamento não consegue
+    // mais criar solicitações. Por isso a checagem é explícita aqui.
+    const linkedUsers = await this.prisma.user.count({
+      where: { departmentId: id },
+    });
+    if (linkedUsers > 0) {
+      throw new ConflictException(
+        `Não é possível excluir este departamento: ${linkedUsers} usuário(s) ainda estão vinculados a ele. Transfira esses usuários para outro departamento antes de excluir.`,
+      );
+    }
+    try {
+      await this.prisma.department.delete({ where: { id } });
+    } catch (err) {
+      // P2003 = violação de chave estrangeira: ainda existem solicitações de
+      // compra apontando para este departamento (histórico que não pode
+      // perder a referência). Sem este catch, o PrismaExceptionFilter global
+      // também devolveria 409, mas com uma mensagem genérica.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2003'
+      ) {
+        throw new ConflictException(
+          'Não é possível excluir este departamento: existem solicitações de compra registradas nele, que precisam manter esse histórico.',
+        );
+      }
+      throw err;
+    }
     return { message: 'Departamento removido com sucesso.' };
   }
 }

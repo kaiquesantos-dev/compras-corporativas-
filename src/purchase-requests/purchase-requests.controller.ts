@@ -116,12 +116,14 @@ export class PurchaseRequestsController {
   }
 
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles('REQUESTER')
   @ApiOperation({
     summary: 'Editar solicitação',
     description:
-      '**Papéis permitidos:** REQUESTER\n\nSomente o dono, e somente em DRAFT.',
+      '**Quem pode chamar:** só o dono da solicitação (quem criou), em qualquer papel atual — não é restrito a quem tem o papel REQUESTER agora. Isso importa se o papel do usuário mudar depois de criar a solicitação (ex: promovido de REQUESTER para BUYER): o rascunho continua editável por ele, em vez de ficar travado para sempre. Válido somente em DRAFT.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Quem chama não é o dono desta solicitação.',
   })
   @ApiResponse({
     status: 409,
@@ -137,11 +139,14 @@ export class PurchaseRequestsController {
 
   @Post(':id/submit')
   @HttpCode(200)
-  @UseGuards(RolesGuard)
-  @Roles('REQUESTER')
   @ApiOperation({
     summary: 'Submeter solicitação para cotação',
-    description: '**Papéis permitidos:** REQUESTER\n\nDRAFT → SUBMITTED',
+    description:
+      '**Quem pode chamar:** só o dono da solicitação (quem criou), em qualquer papel atual — mesma regra de PATCH /purchase-requests/:id. DRAFT → SUBMITTED.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Quem chama não é o dono desta solicitação.',
   })
   @ApiResponse({ status: 409, description: 'Solicitação não está em DRAFT.' })
   submit(

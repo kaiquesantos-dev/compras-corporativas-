@@ -83,10 +83,27 @@ describe('Departments (e2e)', () => {
       .expect(409);
   });
 
-  it('lets deleting a department with only users linked succeed (User.departmentId is optional, ON DELETE SET NULL)', async () => {
+  // User.departmentId é opcional (ON DELETE SET NULL): sem a checagem
+  // explícita do service, a exclusão passava e os usuários perdiam o
+  // departamento em silêncio — um REQUESTER assim não cria mais solicitações.
+  it('returns 409 when deleting a department that still has users linked', async () => {
     const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
     await apiRequest(app)
       .delete(`/departments/${admin.departmentId}`)
+      .set('Authorization', `Bearer ${admin.token}`)
+      .expect(409);
+  });
+
+  it('lets deleting a department with no users or requests linked succeed', async () => {
+    const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+    const empty = await apiRequest(app)
+      .post('/departments')
+      .set('Authorization', `Bearer ${admin.token}`)
+      .send({ name: 'Departamento Vazio' })
+      .expect(201);
+
+    await apiRequest(app)
+      .delete(`/departments/${empty.body.id}`)
       .set('Authorization', `Bearer ${admin.token}`)
       .expect(200);
   });
@@ -96,18 +113,24 @@ describe('Departments (e2e)', () => {
     // PurchaseRequests module doesn't exist yet at this point in the build,
     // so we create the blocking row directly via Prisma to exercise the
     // real RESTRICT constraint and prove the global filter maps it to 409.
+    // Departamento sem usuários, só com uma solicitação apontando pra ele —
+    // assim o 409 vem da FK da solicitação, não da checagem de usuários.
+    const onlyRequests = await prisma.department.create({
+      data: { name: 'Departamento só com solicitação' },
+    });
     await prisma.purchaseRequest.create({
       data: {
         requesterId: admin.id,
-        departmentId: admin.departmentId,
+        departmentId: onlyRequests.id,
         title: 'Solicitação de teste',
         justification: 'Usada apenas para forçar o vínculo de FK neste teste.',
       },
     });
 
-    await apiRequest(app)
-      .delete(`/departments/${admin.departmentId}`)
+    const response = await apiRequest(app)
+      .delete(`/departments/${onlyRequests.id}`)
       .set('Authorization', `Bearer ${admin.token}`)
       .expect(409);
+    expect(response.body.message).toContain('solicitações de compra');
   });
 });

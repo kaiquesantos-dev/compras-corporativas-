@@ -85,7 +85,12 @@ export class SuppliersController {
   @Roles('BUYER', 'ADMIN')
   @ApiOperation({
     summary: 'Atualizar fornecedor',
-    description: '**Papéis permitidos:** BUYER, ADMIN',
+    description:
+      '**Papéis permitidos:** BUYER, ADMIN\n\nO CNPJ (`document`) não pode ser alterado depois do cadastro — é a identidade legal do fornecedor, e mudá-lo reescreveria de qual empresa são as cotações já registradas. Se o CNPJ foi cadastrado errado, desative este registro (`isActive: false`) e cadastre um fornecedor novo com o CNPJ correto.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Corpo inválido, ou tentativa de enviar "document" (campo não existe neste endpoint).',
   })
   update(
     @Param('id', ParseIntPipe) id: number,

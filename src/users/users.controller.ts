@@ -44,9 +44,13 @@ export class UsersController {
   @ApiOperation({
     summary: 'Criar usuário',
     description:
-      '**Papéis permitidos:** ADMIN\n\nCria um novo usuário no sistema.',
+      '**Papéis permitidos:** ADMIN\n\nCria um novo usuário no sistema. Criar uma conta com papel ADMIN exige um ADMIN de verdade — acesso delegado (isAdminDelegate) não é suficiente, senão a delegação temporária viraria acesso permanente. Um usuário REQUESTER precisa de departamento.',
   })
   @ApiResponse({ status: 201, description: 'Usuário criado com sucesso.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Tentativa de criar um ADMIN usando apenas acesso delegado.',
+  })
   @ApiResponse({
     status: 400,
     description: 'Dados inválidos no corpo da requisição.',
@@ -59,8 +63,11 @@ export class UsersController {
     status: 409,
     description: 'Já existe um usuário com esse email.',
   })
-  create(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  create(
+    @Body() dto: CreateUserDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.usersService.create(dto, actor);
   }
 
   @Get()

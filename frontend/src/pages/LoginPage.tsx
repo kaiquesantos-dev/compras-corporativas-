@@ -13,6 +13,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const setSession = useAuthStore((state) => state.setSession)
+  const logout = useAuthStore((state) => state.logout)
   const navigate = useNavigate()
 
   async function handleSubmit(e: FormEvent) {
@@ -30,6 +31,10 @@ export function LoginPage() {
       setSession(token, await fetchCurrentUser())
       navigate('/', { replace: true })
     } catch (err) {
+      // A sessão já foi gravada antes do /auth/me confirmar; se ele falhou,
+      // desfaz — senão o usuário ficava logado "pela metade" (com
+      // isAdminDelegate sempre false) mesmo vendo uma mensagem de erro.
+      logout()
       // Não repassamos a mensagem crua do backend pra tela de login: um
       // 401 pode vir tanto de "senha errada" quanto de um problema de
       // infraestrutura (ex: chave de API do próprio frontend desatualizada

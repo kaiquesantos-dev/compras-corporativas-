@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -39,7 +40,7 @@ export class UsersService {
   // Se um departamentId foi informado, confirma que ele existe de verdade
   // antes de vincular o usuário a ele — evita criar um usuário "órfão"
   // apontando para um departamento inexistente.
-  private async assertDepartmentExists(departmentId?: number) {
+  private async assertDepartmentExists(departmentId?: number | null) {
     if (!departmentId) return;
     const department = await this.prisma.department.findUnique({
       where: { id: departmentId },
@@ -49,7 +50,30 @@ export class UsersService {
     }
   }
 
-  async create(dto: CreateUserDto) {
+  // Um REQUESTER sem departamento é uma conta que nasce inutilizável: toda
+  // solicitação de compra precisa do departamento de quem pede (ver
+  // PurchaseRequestsService.create), então ele nunca conseguiria fazer a
+  // única coisa que o papel dele permite. Barramos na origem, com 400, em vez
+  // de deixar o problema aparecer só depois, na hora de criar a solicitação.
+  private assertRequesterHasDepartment(
+    role: string,
+    departmentId: number | null | undefined,
+  ) {
+    if (role === 'REQUESTER' && !departmentId) {
+      throw new BadRequestException(
+        'Um usuário com papel REQUESTER precisa estar vinculado a um departamento.',
+      );
+    }
+  }
+
+  async create(dto: CreateUserDto, actor: AuthenticatedUser) {
+    // Criar uma conta ADMIN exige ADMIN de verdade: um delegado (acesso
+    // TEMPORÁRIO) que pudesse criar ADMINs transformaria a delegação em
+    // acesso permanente, que sobrevive à revogação.
+    if (dto.role === 'ADMIN') {
+      this.assertRealAdmin(actor);
+    }
+    this.assertRequesterHasDepartment(dto.role, dto.departmentId);
     await this.assertDepartmentExists(dto.departmentId);
     // bcrypt.hash "embaralha" a senha de um jeito que não dá pra reverter —
     // nem nós, olhando o banco, conseguimos saber qual é a senha original.
@@ -105,9 +129,24 @@ export class UsersService {
 
   async update(id: number, dto: UpdateUserDto, actor: AuthenticatedUser) {
     const current = await this.findOne(id);
-    if (current.role === 'ADMIN') {
+    // Mexer numa conta ADMIN, ou promover alguém a ADMIN, exige ADMIN de
+    // verdade (mesmo motivo do create()).
+    if (current.role === 'ADMIN' || dto.role === 'ADMIN') {
       this.assertRealAdmin(actor);
     }
+    // Ninguém muda o próprio papel. Além de evitar autopromoção, isso garante
+    // que o sistema nunca fica sem ADMIN: para rebaixar um ADMIN é preciso
+    // outro ADMIN de verdade agindo (assertRealAdmin acima), e esse continua
+    // sendo ADMIN depois da operação.
+    if (id === actor.id && dto.role && dto.role !== current.role) {
+      throw new ForbiddenException('Você não pode alterar o seu próprio papel.');
+    }
+    // "departmentId: null" significa desvincular — não pode cair no "??",
+    // que trataria null como "não informado" e usaria o valor atual.
+    this.assertRequesterHasDepartment(
+      dto.role ?? current.role,
+      dto.departmentId === undefined ? current.departmentId : dto.departmentId,
+    );
     await this.assertDepartmentExists(dto.departmentId);
 
     const data: Record<string, unknown> = { ...dto };
@@ -176,11 +215,33 @@ export class UsersService {
   }
 
   async remove(id: number, actor: AuthenticatedUser) {
+    // Mesmo motivo do bloqueio em update(): excluir a própria conta poderia
+    // deixar o sistema sem nenhum ADMIN.
+    if (id === actor.id) {
+      throw new ForbiddenException('Você não pode excluir a sua própria conta.');
+    }
     const user = await this.findOne(id);
     if (user.role === 'ADMIN') {
       this.assertRealAdmin(actor);
     }
-    await this.prisma.user.delete({ where: { id } });
+    try {
+      await this.prisma.user.delete({ where: { id } });
+    } catch (err) {
+      // P2003: este usuário ainda tem registros vinculados (solicitações de
+      // compra criadas por ele, cotações registradas, aprovações decididas
+      // ou entradas no histórico de status). Excluir apagaria a autoria
+      // desses registros — por isso a recomendação é sempre manter o
+      // usuário cadastrado, mesmo que ele não trabalhe mais na empresa.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2003'
+      ) {
+        throw new ConflictException(
+          'Não é possível excluir este usuário: ele possui solicitações de compra, cotações, aprovações ou histórico vinculados a ele no sistema. Isso preserva a autoria dos registros mesmo após o desligamento do usuário.',
+        );
+      }
+      throw err;
+    }
     return { message: 'Usuário removido com sucesso.' };
   }
 }

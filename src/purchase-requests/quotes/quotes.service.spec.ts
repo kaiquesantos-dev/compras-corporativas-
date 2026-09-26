@@ -1,4 +1,5 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client';
 import { QuotesService } from './quotes.service';
 import { PurchaseRequestStatusService } from '../purchase-request-status.service';
 
@@ -67,7 +68,7 @@ describe('QuotesService', () => {
         id: 1,
         status: 'SUBMITTED',
       });
-      prisma.supplier.findUnique.mockResolvedValue({ id: 1 });
+      prisma.supplier.findUnique.mockResolvedValue({ id: 1, isActive: true });
       prisma.quote.create.mockResolvedValue({ id: 10 });
 
       await service.create(1, { supplierId: 1, totalValue: 100 }, {
@@ -86,7 +87,7 @@ describe('QuotesService', () => {
         id: 1,
         status: 'IN_QUOTATION',
       });
-      prisma.supplier.findUnique.mockResolvedValue({ id: 1 });
+      prisma.supplier.findUnique.mockResolvedValue({ id: 1, isActive: true });
       prisma.quote.create.mockResolvedValue({ id: 11 });
 
       await service.create(1, { supplierId: 1, totalValue: 100 }, {
@@ -95,6 +96,52 @@ describe('QuotesService', () => {
       } as any);
 
       expect(prisma.purchaseRequest.update).not.toHaveBeenCalled();
+    });
+
+    // Corrida: o dono cancela a solicitação SUBMITTED no mesmo instante em que
+    // a primeira cotação é registrada. A transição SUBMITTED -> IN_QUOTATION
+    // perde (P2025), e a cotação NÃO pode ser criada numa solicitação
+    // cancelada.
+    it('does not create the quote when a concurrent cancel won the race', async () => {
+      purchaseRequestsService.findOne.mockResolvedValue({
+        id: 1,
+        status: 'SUBMITTED',
+      });
+      prisma.supplier.findUnique.mockResolvedValue({ id: 1, isActive: true });
+      prisma.purchaseRequest.update.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Record not found', {
+          code: 'P2025',
+          clientVersion: 'test',
+        }),
+      );
+      prisma.purchaseRequest.findUnique = jest
+        .fn()
+        .mockResolvedValue({ status: 'CANCELLED' });
+
+      await expect(
+        service.create(1, { supplierId: 1, totalValue: 100 } as any, {
+          id: 1,
+          role: 'BUYER',
+        } as any),
+      ).rejects.toThrow(ConflictException);
+      expect(prisma.quote.create).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when the supplier is inactive', async () => {
+      purchaseRequestsService.findOne.mockResolvedValue({
+        id: 1,
+        status: 'IN_QUOTATION',
+      });
+      prisma.supplier.findUnique.mockResolvedValue({ id: 1, isActive: false });
+
+      await expect(
+        service.create(
+          1,
+          { supplierId: 1, totalValue: 100 } as any,
+          { id: 1, role: 'BUYER' } as any,
+        ),
+      ).rejects.toThrow(ConflictException);
+      expect(prisma.quote.create).not.toHaveBeenCalled();
     });
   });
 
@@ -114,6 +161,24 @@ describe('QuotesService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
+    it('throws ConflictException when the quote\'s supplier is inactive', async () => {
+      purchaseRequestsService.findOne.mockResolvedValue({
+        id: 1,
+        status: 'IN_QUOTATION',
+      });
+      prisma.quote.findUnique.mockResolvedValue({
+        id: 5,
+        purchaseRequestId: 1,
+        supplierId: 9,
+      });
+      prisma.supplier.findUnique.mockResolvedValue({ id: 9, isActive: false });
+
+      await expect(
+        service.select(1, 5, { id: 1, role: 'BUYER' } as any),
+      ).rejects.toThrow(ConflictException);
+      expect(prisma.purchaseRequest.update).not.toHaveBeenCalled();
+    });
+
     it('discards the other quotes and moves the request to PENDING_APPROVAL', async () => {
       purchaseRequestsService.findOne.mockResolvedValue({
         id: 1,
@@ -122,7 +187,9 @@ describe('QuotesService', () => {
       prisma.quote.findUnique.mockResolvedValue({
         id: 5,
         purchaseRequestId: 1,
+        supplierId: 9,
       });
+      prisma.supplier.findUnique.mockResolvedValue({ id: 9, isActive: true });
       prisma.purchaseRequest.update.mockResolvedValue({
         id: 1,
         status: 'PENDING_APPROVAL',
@@ -134,10 +201,12 @@ describe('QuotesService', () => {
         where: { purchaseRequestId: 1, id: { not: 5 } },
         data: { status: 'DISCARDED' },
       });
-      expect(prisma.quote.update).toHaveBeenCalledWith({
-        where: { id: 5 },
-        data: { status: 'SELECTED' },
-      });
+      expect(prisma.quote.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 5 },
+          data: { status: 'SELECTED' },
+        }),
+      );
       expect(prisma.purchaseRequest.update).toHaveBeenCalledWith({
         where: { id: 1, status: 'IN_QUOTATION' },
         data: {
@@ -157,12 +226,29 @@ describe('QuotesService', () => {
       prisma.quote.findUnique.mockResolvedValue({
         id: 5,
         purchaseRequestId: 1,
-        proposalFileContent: null,
       });
+      prisma.quote.findUniqueOrThrow = jest
+        .fn()
+        .mockResolvedValue({ proposalFileContent: null });
 
       await expect(
         service.downloadProposal(1, 5, { id: 1, role: 'BUYER' } as any),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // Listagem não pode carregar o arquivo da proposta: serializado em JSON,
+  // um PDF de 1MB virava uma resposta de ~12MB.
+  describe('findAll', () => {
+    it('never loads the proposal file content', async () => {
+      purchaseRequestsService.findOne.mockResolvedValue({ id: 1 });
+      prisma.quote.findMany.mockResolvedValue([]);
+
+      await service.findAll(1, { id: 1, role: 'BUYER' } as any);
+
+      expect(prisma.quote.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ omit: { proposalFileContent: true } }),
+      );
     });
   });
 });

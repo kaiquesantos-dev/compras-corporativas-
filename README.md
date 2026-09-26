@@ -118,6 +118,8 @@ Testes end-to-end (batem nos endpoints reais, contra o banco de teste em `db-tes
 npm run test:e2e
 ```
 
+Antes de rodar os testes, o script `pretest:e2e` aplica as migrations no banco de teste automaticamente (ele é isolado do banco de desenvolvimento — `npx prisma migrate dev` nunca toca nele). Não é preciso rodar nenhum comando de migration manualmente antes: basta ter os containers `db` e `db-test` no ar (`docker compose up -d db db-test`) e chamar `npm run test:e2e` diretamente.
+
 Os testes e2e cobrem, entre outros, os 10 cenários obrigatórios do enunciado: fluxo principal com sucesso, `400` (body inválido), `401` (sem token/token inválido), `403` (sem permissão e acesso a recurso de terceiro), `404` (recurso inexistente), `409` (conflito de regra de negócio, incluindo violação de FK mapeada e não um `500`), upload válido/inválido, integração externa funcionando/falhando de forma controlada, e o fluxo completo de mudança de estado.
 
 ## Build de produção
@@ -181,6 +183,16 @@ IN_QUOTATION --buyer/admin cancela--> CANCELLED (terminal)
 
 **Quem pode cancelar muda conforme o estado:** em `DRAFT`/`SUBMITTED` é o REQUESTER dono (ou ADMIN) — a solicitação ainda não envolveu nenhum comprador. A partir de `IN_QUOTATION`, o comprador já está negociando com fornecedores de verdade, então o REQUESTER dono deixa de poder cancelar sozinho: só um BUYER ou ADMIN decidem a partir daí, para que quem está conduzindo a cotação tenha voz nessa decisão.
 
+**Editar e submeter (`PATCH`/`submit`) checam posse, não o papel atual.** A autorização aqui é "é o dono desta solicitação?", não "o papel do usuário agora é REQUESTER?". Isso importa quando alguém é promovido/transferido depois de criar uma solicitação (ex: de REQUESTER para BUYER): sem essa distinção, o rascunho ficaria travado para sempre — nem o dono (que não é mais REQUESTER) nem ninguém mais (não é dono) conseguiria editá-lo ou submetê-lo, sem que a solicitação apareça como cancelada nem haja qualquer sinalização do problema.
+
+**Outras regras de negócio que protegem o fluxo:**
+
+- **Segregação de funções:** quem criou uma solicitação nunca aprova nem rejeita essa solicitação, mesmo que depois seja promovido a APPROVER (`403`).
+- **Cotação vencida:** não é possível registrar uma cotação com `validUntil` no passado (`400`) nem selecionar como vencedora uma cotação que venceu depois de registrada (`409`). A validade vale até o fim do dia informado.
+- **Fornecedor inativo** não recebe cotação nova nem pode ter cotação selecionada como vencedora (`409`). O CNPJ não é editável depois do cadastro. Se foi cadastrado errado, desative o fornecedor e cadastre outro.
+- **Sistema nunca fica sem administrador:** ninguém altera o próprio papel nem exclui a própria conta (`403`). Acesso ADMIN delegado não cria contas ADMIN nem promove ninguém a ADMIN (`403`). Assim a delegação continua sendo temporária.
+- **REQUESTER sempre tem departamento:** é exigido na criação e na edição (`400`), e um departamento com usuários não pode ser excluído (`409`), para que nenhum solicitante fique sem conseguir criar solicitações.
+
 ## Endpoints
 
 Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT válido; "-" significa qualquer usuário autenticado.
@@ -196,12 +208,12 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 
 | Método | URL | Body | Respostas |
 |---|---|---|---|
-| POST | `/users` | `{ name, email, password, role, departmentId? }` | `201` · `400` · `401` · `403` · `404` depto inexistente · `409` email duplicado |
+| POST | `/users` | `{ name, email, password, role, departmentId? }` | `201` · `400` (inclusive REQUESTER sem departamento) · `401` · `403` (inclusive acesso delegado tentando criar um ADMIN) · `404` depto inexistente · `409` email duplicado |
 | GET | `/users?page=&pageSize=&sortBy=&sortOrder=` | — | `200` |
 | GET | `/users/:id` | — | `200` · `404` |
-| PATCH | `/users/:id` | campos acima, todos opcionais | `200` · `400` · `403` se o alvo é ADMIN e quem chama só tem acesso delegado (não real) · `404` |
+| PATCH | `/users/:id` | campos acima, todos opcionais; `departmentId: null` desvincula o departamento | `200` · `400` (inclusive deixar um REQUESTER sem departamento) · `403` se o alvo é ADMIN (ou vai virar ADMIN) e quem chama só tem acesso delegado, ou se quem chama tenta mudar o próprio papel · `404` |
 | PATCH | `/users/:id/admin-delegate` | `{ granted: boolean }` | Concede/revoga acesso ADMIN temporário a um APPROVER (ex: cobrir férias do admin) — `200` · `400` alvo não é APPROVER · `403` só um ADMIN real pode chamar isto (um delegado não pode criar outros delegados) · `404` |
-| DELETE | `/users/:id` | — | `200` · `403` se o alvo é ADMIN e quem chama só tem acesso delegado · `404` · `409` se houver vínculos |
+| DELETE | `/users/:id` | — | `200` · `403` se o alvo é ADMIN e quem chama só tem acesso delegado, ou se é a própria conta de quem chama · `404` · `409` se houver vínculos |
 
 > **Nota sobre `isAdminDelegate`:** um usuário com acesso ADMIN só por delegação passa em qualquer checagem de papel que exija `ADMIN`, mas **não** é tratado como ADMIN de verdade para duas ações: conceder/revogar uma delegação (evita uma cadeia de escalonamento de privilégio descontrolada) e alterar/remover a conta de outro ADMIN (evita que um delegado tranque o admin real fora do sistema).
 
@@ -213,7 +225,7 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 | GET | `/departments` | - | — | `200` |
 | GET | `/departments/:id` | - | — | `200` · `404` |
 | PATCH | `/departments/:id` | ADMIN | `{ name }` | `200` · `404` |
-| DELETE | `/departments/:id` | ADMIN | — | `200` · `404` · `409` se houver solicitações vinculadas (usuários apenas são desvinculados, não bloqueiam a exclusão) |
+| DELETE | `/departments/:id` | ADMIN | — | `200` · `404` · `409` se ainda houver usuários ou solicitações vinculados (transfira os usuários antes) |
 
 ### Fornecedores (`/suppliers`)
 
@@ -222,7 +234,7 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 | POST | `/suppliers` | BUYER, ADMIN | `{ document, legalName?, tradeName?, email?, phone?, zipCode?, street?, city?, state? }` — `legalName`/endereço preenchidos automaticamente via CNPJ quando omitidos | `201` · `400` CNPJ inválido/serviço indisponível sem dados manuais · `403` · `409` CNPJ duplicado |
 | GET | `/suppliers?page=&pageSize=&sortBy=&sortOrder=&isActive=` | - | — | `200` |
 | GET | `/suppliers/:id` | - | — | `200` · `404` |
-| PATCH | `/suppliers/:id` | BUYER, ADMIN | campos acima, opcionais | `200` · `404` |
+| PATCH | `/suppliers/:id` | BUYER, ADMIN | `{ legalName?, tradeName?, email?, phone?, zipCode?, street?, city?, state?, isActive? }` — **sem `document`**: o CNPJ é travado após o cadastro (é a identidade legal do fornecedor) | `200` · `400` se enviar `document` · `404` |
 | DELETE | `/suppliers/:id` | ADMIN | — | `200` · `404` · `409` se houver cotações vinculadas |
 
 ### Solicitações de compra (`/purchase-requests`)
@@ -233,9 +245,9 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 | GET | `/purchase-requests?page=&pageSize=&sortBy=&sortOrder=&status=` | - | — | `200` (REQUESTER vê só as próprias) |
 | GET | `/purchase-requests/metrics` | BUYER, APPROVER, ADMIN | — | `200` · `403` |
 | GET | `/purchase-requests/:id` | - | — | `200` · `403` recurso de terceiro · `404` |
-| PATCH | `/purchase-requests/:id` | REQUESTER dono | `{ title?, justification? }` | `200` · `403` · `404` · `409` fora de DRAFT |
-| POST | `/purchase-requests/:id/submit` | REQUESTER dono | — | `200` · `403` · `409` fora de DRAFT |
-| POST | `/purchase-requests/:id/cancel` | REQUESTER dono (DRAFT/SUBMITTED), BUYER (a partir de IN_QUOTATION), ADMIN (qualquer estado cancelável) | — | `200` · `403` papel/estado incompatível · `409` estado não cancelável |
+| PATCH | `/purchase-requests/:id` | dono da solicitação, qualquer que seja o papel atual dele | `{ title?, justification? }` | `200` · `403` · `404` · `409` fora de DRAFT |
+| POST | `/purchase-requests/:id/submit` | dono da solicitação, qualquer que seja o papel atual dele | — | `200` · `403` · `409` fora de DRAFT |
+| POST | `/purchase-requests/:id/cancel` | REQUESTER dono (DRAFT/SUBMITTED), BUYER (a partir de IN_QUOTATION), ADMIN ou admin delegado (qualquer estado cancelável) | — | `200` · `403` papel/estado incompatível · `409` estado não cancelável |
 | POST | `/purchase-requests/:id/complete` | BUYER, ADMIN | — | `200` · `409` fora de APPROVED |
 | GET | `/purchase-requests/:id/history` | - | — | `200` · `403` · `404` |
 
@@ -243,17 +255,17 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 
 | Método | URL | Auth | Body | Respostas |
 |---|---|---|---|---|
-| POST | `/purchase-requests/:id/quotes` | BUYER, ADMIN | `{ supplierId, totalValue, validUntil?, notes? }` (JSON) **ou** `multipart/form-data` com os mesmos campos + `file` opcional (PDF/PNG/JPEG, até 5MB) — anexa a proposta já na criação, sem precisar de uma segunda chamada | `201` · `400` dados/arquivo inválido · `404` solicitação/fornecedor · `409` fora de SUBMITTED/IN_QUOTATION · `413` arquivo maior que 5MB |
+| POST | `/purchase-requests/:id/quotes` | BUYER, ADMIN | `{ supplierId, totalValue, validUntil?, notes? }` (JSON) **ou** `multipart/form-data` com os mesmos campos + `file` opcional (PDF/PNG/JPEG, até 5MB) — anexa a proposta já na criação, sem precisar de uma segunda chamada | `201` · `400` dados/arquivo inválido, ou `validUntil` no passado · `404` solicitação/fornecedor · `409` fora de SUBMITTED/IN_QUOTATION, ou fornecedor inativo (`isActive: false`) · `413` arquivo maior que 5MB |
 | GET | `/purchase-requests/:id/quotes` | - | — | `200` |
 | POST | `/purchase-requests/:id/quotes/:quoteId/proposal` | BUYER, ADMIN | `multipart/form-data`, campo `file` (PDF/PNG/JPEG, até 5MB) | `201` · `400` arquivo ausente/tipo ou conteúdo não permitido · `409` fora de SUBMITTED/IN_QUOTATION · `413` arquivo maior que 5MB |
 | GET | `/purchase-requests/:id/quotes/:quoteId/proposal` | - | — | `200` binário · `404` sem arquivo |
-| POST | `/purchase-requests/:id/quotes/:quoteId/select` | BUYER, ADMIN | — | `200` · `409` fora de IN_QUOTATION |
+| POST | `/purchase-requests/:id/quotes/:quoteId/select` | BUYER, ADMIN | — | `200` · `409` fora de IN_QUOTATION, fornecedor da cotação inativo, ou cotação vencida |
 
 ### Aprovações (`/purchase-requests/:id/approval`)
 
 | Método | URL | Auth | Body | Respostas |
 |---|---|---|---|---|
-| POST | `/purchase-requests/:id/approval` | APPROVER, ADMIN | `{ decision: "APPROVED" \| "REJECTED", comment? }` | `200` · `403` · `409` fora de PENDING_APPROVAL |
+| POST | `/purchase-requests/:id/approval` | APPROVER, ADMIN | `{ decision: "APPROVED" \| "REJECTED", comment? }` | `200` · `403` (inclusive quem criou a solicitação tentando decidir sobre ela) · `409` fora de PENDING_APPROVAL |
 | GET | `/purchase-requests/:id/approval` | - | — | `200` · `404` sem decisão ainda |
 
 ### Documentação

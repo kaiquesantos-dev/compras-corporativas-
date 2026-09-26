@@ -1,15 +1,26 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
-import { createUser, deleteUser, fetchUsers, setAdminDelegate, type CreateUserInput } from '../api/users'
+import {
+  createUser,
+  deleteUser,
+  fetchUsers,
+  setAdminDelegate,
+  updateUser,
+  type CreateUserInput,
+  type UpdateUserInput,
+} from '../api/users'
 import { fetchDepartments } from '../api/departments'
-import type { Role } from '../api/types'
+import type { Role, User } from '../api/types'
 import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
 import { Select } from '../components/ui/Select'
 import { Modal } from '../components/ui/Modal'
 import { Pagination } from '../components/ui/Pagination'
 import { useConfirm } from '../hooks/confirm-context'
+import { useAuthStore } from '../store/auth-store'
+
+const REQUESTER_NEEDS_DEPARTMENT = 'Solicitantes precisam de um departamento.'
 
 const roleLabels: Record<Role, string> = {
   REQUESTER: 'Solicitante',
@@ -26,9 +37,11 @@ function errorMessage(err: unknown, fallback: string): string {
 
 export function UsersPage() {
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<User | null>(null)
   const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
   const confirm = useConfirm()
+  const currentUserId = useAuthStore((state) => state.user?.id)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['users', page],
@@ -41,7 +54,14 @@ export function UsersPage() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['users'] })
   const createMutation = useMutation({ mutationFn: createUser, onSuccess: invalidate })
+  const updateMutation = useMutation({
+    mutationFn: (input: { id: number; data: UpdateUserInput }) => updateUser(input.id, input.data),
+    onSuccess: invalidate,
+  })
   const deleteMutation = useMutation({ mutationFn: deleteUser, onSuccess: invalidate })
+  const deleteError = deleteMutation.error
+    ? errorMessage(deleteMutation.error, 'Não foi possível remover este usuário.')
+    : null
   const delegateMutation = useMutation({
     mutationFn: (input: { id: number; granted: boolean }) => setAdminDelegate(input.id, input.granted),
     onSuccess: invalidate,
@@ -70,6 +90,18 @@ export function UsersPage() {
 
       {isLoading && <p className="text-ink-muted">Carregando...</p>}
       {isError && <p className="text-accent-text">Não foi possível carregar os usuários.</p>}
+
+      {deleteError && (
+        <div className="mb-4 flex items-start justify-between gap-4 rounded-[6px] border border-accent-text/30 bg-accent-text/10 p-4 text-sm text-accent-text">
+          <p>{deleteError}</p>
+          <button
+            onClick={() => deleteMutation.reset()}
+            className="shrink-0 text-xs font-semibold uppercase hover:underline"
+          >
+            Fechar
+          </button>
+        </div>
+      )}
 
       {data && (
         <>
@@ -110,18 +142,28 @@ export function UsersPage() {
                         </button>
                       )}
                       <button
-                        onClick={async () => {
-                          const ok = await confirm({
-                            title: 'Remover usuário?',
-                            message: `"${user.name}" será removido permanentemente.`,
-                            confirmLabel: 'Remover',
-                          })
-                          if (ok) deleteMutation.mutate(user.id)
-                        }}
-                        className="text-xs font-semibold text-accent-text uppercase"
+                        onClick={() => setEditing(user)}
+                        className="mr-4 text-xs font-semibold text-ink-muted uppercase hover:text-accent-text"
                       >
-                        Remover
+                        Editar
                       </button>
+                      {/* Ninguém exclui a própria conta (o backend também
+                          barra) — senão o sistema podia ficar sem admin. */}
+                      {user.id !== currentUserId && (
+                        <button
+                          onClick={async () => {
+                            const ok = await confirm({
+                              title: 'Remover usuário?',
+                              message: `"${user.name}" será removido permanentemente.`,
+                              confirmLabel: 'Remover',
+                            })
+                            if (ok) deleteMutation.mutate(user.id)
+                          }}
+                          className="text-xs font-semibold text-accent-text uppercase"
+                        >
+                          Remover
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -139,6 +181,20 @@ export function UsersPage() {
           onSubmit={(input) => createMutation.mutate(input, { onSuccess: () => setCreating(false) })}
           pending={createMutation.isPending}
           error={createMutation.error}
+        />
+      )}
+
+      {editing && (
+        <EditUserModal
+          user={editing}
+          isSelf={editing.id === currentUserId}
+          departments={departments?.data ?? []}
+          onClose={() => setEditing(null)}
+          onSubmit={(input) =>
+            updateMutation.mutate({ id: editing.id, data: input }, { onSuccess: () => setEditing(null) })
+          }
+          pending={updateMutation.isPending}
+          error={updateMutation.error}
         />
       )}
     </div>
@@ -163,9 +219,11 @@ function NewUserModal({
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<Role>('REQUESTER')
   const [departmentId, setDepartmentId] = useState<string>('')
+  const missingDepartment = role === 'REQUESTER' && !departmentId
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (missingDepartment) return
     onSubmit({
       name,
       email,
@@ -178,14 +236,32 @@ function NewUserModal({
   return (
     <Modal title="_Novo usuário" onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <TextField label="Nome" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
-        <TextField label="E-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <TextField
+          label="Nome"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          autoFocus
+          minLength={2}
+          maxLength={100}
+        />
+        <TextField
+          label="E-mail"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          maxLength={255}
+        />
         <TextField
           label="Senha"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          minLength={6}
+          maxLength={72}
+          hint="Mínimo de 6 caracteres."
         />
 
         <Select
@@ -203,11 +279,111 @@ function NewUserModal({
             { value: '', label: 'Sem departamento' },
             ...departments.map((dept) => ({ value: String(dept.id), label: dept.name })),
           ]}
+          error={missingDepartment ? REQUESTER_NEEDS_DEPARTMENT : undefined}
         />
 
         {error ? <p className="text-sm text-accent-text">{errorMessage(error, 'Não foi possível criar.')}</p> : null}
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending || missingDepartment}>
           {pending ? 'Criando...' : 'Criar usuário'}
+        </Button>
+      </form>
+    </Modal>
+  )
+}
+
+function EditUserModal({
+  user,
+  isSelf,
+  departments,
+  onClose,
+  onSubmit,
+  pending,
+  error,
+}: {
+  user: User
+  isSelf: boolean
+  departments: { id: number; name: string }[]
+  onClose: () => void
+  onSubmit: (input: UpdateUserInput) => void
+  pending: boolean
+  error: unknown
+}) {
+  const [name, setName] = useState(user.name)
+  const [email, setEmail] = useState(user.email)
+  const [password, setPassword] = useState('')
+  const [role, setRole] = useState<Role>(user.role)
+  const [departmentId, setDepartmentId] = useState<string>(user.departmentId ? String(user.departmentId) : '')
+  const missingDepartment = role === 'REQUESTER' && !departmentId
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (missingDepartment) return
+    onSubmit({
+      name,
+      email,
+      password: password || undefined,
+      // O próprio papel não é editável (o backend barra com 403) — não
+      // manda o campo, pra salvar nome/e-mail/senha não falhar à toa.
+      role: isSelf ? undefined : role,
+      // null (e não undefined) quando "Sem departamento": undefined some do
+      // JSON e o backend manteria o departamento antigo em silêncio.
+      departmentId: departmentId ? Number(departmentId) : null,
+    })
+  }
+
+  return (
+    <Modal title="_Editar usuário" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <TextField
+          label="Nome"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          autoFocus
+          minLength={2}
+          maxLength={100}
+        />
+        <TextField
+          label="E-mail"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          maxLength={255}
+        />
+        <TextField
+          label="Nova senha (opcional)"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          minLength={6}
+          maxLength={72}
+          hint="Deixe em branco para manter a senha atual."
+        />
+
+        <Select
+          label="Papel"
+          value={role}
+          onChange={(v) => setRole(v as Role)}
+          options={Object.entries(roleLabels).map(([value, label]) => ({ value, label }))}
+          disabled={isSelf}
+          hint={isSelf ? 'Você não pode alterar o seu próprio papel.' : undefined}
+        />
+
+        <Select
+          label="Departamento"
+          value={departmentId}
+          onChange={setDepartmentId}
+          options={[
+            { value: '', label: 'Sem departamento' },
+            ...departments.map((dept) => ({ value: String(dept.id), label: dept.name })),
+          ]}
+          error={missingDepartment ? REQUESTER_NEEDS_DEPARTMENT : undefined}
+        />
+
+        {error ? <p className="text-sm text-accent-text">{errorMessage(error, 'Não foi possível salvar.')}</p> : null}
+        <Button type="submit" disabled={pending || missingDepartment}>
+          {pending ? 'Salvando...' : 'Salvar alterações'}
         </Button>
       </form>
     </Modal>

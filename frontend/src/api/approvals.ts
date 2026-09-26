@@ -1,5 +1,10 @@
 import { apiClient } from './client'
-import type { PurchaseRequest } from './types'
+import type { Approval, PurchaseRequest } from './types'
+
+export async function fetchApproval(purchaseRequestId: number): Promise<Approval> {
+  const { data } = await apiClient.get<Approval>(`/purchase-requests/${purchaseRequestId}/approval`)
+  return data
+}
 
 export async function decideApproval(
   purchaseRequestId: number,

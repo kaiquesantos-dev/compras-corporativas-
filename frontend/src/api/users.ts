@@ -24,8 +24,10 @@ export async function createUser(input: CreateUserInput): Promise<User> {
 export interface UpdateUserInput {
   name?: string
   email?: string
+  password?: string
   role?: Role
-  departmentId?: number
+  // null = desvincular do departamento (undefined = não mexer)
+  departmentId?: number | null
 }
 
 export async function updateUser(id: number, input: UpdateUserInput): Promise<User> {

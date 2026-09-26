@@ -12,6 +12,25 @@ import { CreatePurchaseRequestDto } from './dto/create-purchase-request.dto';
 import { UpdatePurchaseRequestDto } from './dto/update-purchase-request.dto';
 import { PurchaseRequestQueryDto } from './dto/purchase-request-query.dto';
 import { PurchaseRequestStatusService } from './purchase-request-status.service';
+import { OMIT_PROPOSAL_CONTENT } from './quotes/omit-proposal-content';
+import { PurchaseRequestStatus } from '../generated/prisma/client';
+
+const CANCELLABLE_STATUSES: PurchaseRequestStatus[] = [
+  'DRAFT',
+  'SUBMITTED',
+  'IN_QUOTATION',
+];
+
+const STATUS_LABELS: Record<PurchaseRequestStatus, string> = {
+  DRAFT: 'Rascunho',
+  SUBMITTED: 'Submetida',
+  IN_QUOTATION: 'Em cotação',
+  PENDING_APPROVAL: 'Aguardando aprovação',
+  APPROVED: 'Aprovada',
+  REJECTED: 'Rejeitada',
+  COMPLETED: 'Concluída',
+  CANCELLED: 'Cancelada',
+};
 
 // Este é o service mais importante do sistema: cuida do CRUD da
 // solicitação de compra e das ações que fazem ela mudar de estado
@@ -87,7 +106,10 @@ export class PurchaseRequestsService {
         include: {
           items: true,
           requester: { select: USER_SELECT },
-          selectedQuote: { include: { supplier: true } },
+          selectedQuote: {
+            include: { supplier: true },
+            omit: OMIT_PROPOSAL_CONTENT,
+          },
         },
       }),
       this.prisma.purchaseRequest.count({ where }),
@@ -101,7 +123,7 @@ export class PurchaseRequestsService {
       where: { id },
       include: {
         items: true,
-        quotes: true,
+        quotes: { omit: OMIT_PROPOSAL_CONTENT },
         approval: true,
         requester: { select: USER_SELECT },
       },
@@ -168,16 +190,39 @@ export class PurchaseRequestsService {
       throw new NotFoundException('Solicitação de compra não encontrada.');
     }
 
-    if (user.role !== 'ADMIN') {
-      if (pr.status === 'IN_QUOTATION') {
-        if (user.role !== 'BUYER') {
-          throw new ForbiddenException(
-            'A partir de "Em cotação", só um comprador ou administrador pode cancelar esta solicitação.',
-          );
-        }
-      } else if (pr.requesterId !== user.id) {
+    // Um APPROVER com acesso ADMIN delegado (isAdminDelegate) cobre o admin
+    // por completo, inclusive aqui — o RolesGuard já o deixa entrar nesta
+    // rota como ADMIN, e sem isto ele levava 403 logo em seguida.
+    const actsAsAdmin = user.role === 'ADMIN' || user.isAdminDelegate;
+    const isOwner = pr.requesterId === user.id;
+
+    // 1) Um REQUESTER não enxerga solicitações de outras pessoas — responde
+    //    403 antes de qualquer outra checagem, pra não vazar o status delas.
+    if (user.role === 'REQUESTER' && !isOwner) {
+      throw new ForbiddenException(
+        'Você não tem acesso a esta solicitação de compra.',
+      );
+    }
+
+    // 2) Estado que não permite mais cancelar é conflito de regra (409),
+    //    igual pra todo mundo — antes o dono recebia 409 com uma mensagem
+    //    técnica e o comprador recebia um 403 falso ("não tem acesso").
+    if (!CANCELLABLE_STATUSES.includes(pr.status)) {
+      throw new ConflictException(
+        `Esta solicitação não pode mais ser cancelada: ela está "${STATUS_LABELS[pr.status]}". Só é possível cancelar até a fase "Em cotação".`,
+      );
+    }
+
+    // 3) Quem pode cancelar, conforme a fase.
+    if (!actsAsAdmin) {
+      if (pr.status === 'IN_QUOTATION' && user.role !== 'BUYER') {
         throw new ForbiddenException(
-          'Você não tem acesso a esta solicitação de compra.',
+          'A partir de "Em cotação", só um comprador ou administrador pode cancelar esta solicitação.',
+        );
+      }
+      if (pr.status !== 'IN_QUOTATION' && !isOwner) {
+        throw new ForbiddenException(
+          'Antes de entrar em cotação, só quem criou a solicitação (ou um administrador) pode cancelá-la.',
         );
       }
     }

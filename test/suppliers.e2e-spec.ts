@@ -139,4 +139,90 @@ describe('Suppliers (e2e)', () => {
       .set('Authorization', `Bearer ${buyer.token}`)
       .expect(404);
   });
+
+  it('lets a BUYER update contact fields without touching the CNPJ (200)', async () => {
+    cnpjLookupService.lookup.mockResolvedValue({
+      legalName: 'Fornecedor Real LTDA',
+      tradeName: null,
+      zipCode: null,
+      street: null,
+      city: null,
+      state: null,
+      federalRegistrationStatus: null,
+    });
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+
+    const created = await apiRequest(app)
+      .post('/suppliers')
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ document: '19131243000197' })
+      .expect(201);
+
+    const response = await apiRequest(app)
+      .patch(`/suppliers/${created.body.id}`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ phone: '(11) 90000-0000', isActive: false })
+      .expect(200);
+
+    expect(response.body.phone).toBe('(11) 90000-0000');
+    expect(response.body.isActive).toBe(false);
+    // CNPJ nunca muda, mesmo depois de outros campos serem atualizados.
+    expect(response.body.document).toBe('19131243000197');
+  });
+
+  // O CNPJ é a identidade legal do fornecedor: uma vez cadastrado, editá-lo
+  // reescreveria silenciosamente de qual empresa são as cotações já
+  // registradas. Como o campo "document" nem existe em UpdateSupplierDto e o
+  // ValidationPipe global usa forbidNonWhitelisted, mandar esse campo no
+  // PATCH é rejeitado (400), não apenas ignorado.
+  it('rejects any attempt to change the CNPJ via PATCH with 400', async () => {
+    cnpjLookupService.lookup.mockResolvedValue({
+      legalName: 'Fornecedor Real LTDA',
+      tradeName: null,
+      zipCode: null,
+      street: null,
+      city: null,
+      state: null,
+      federalRegistrationStatus: null,
+    });
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+
+    const created = await apiRequest(app)
+      .post('/suppliers')
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ document: '19131243000197' })
+      .expect(201);
+
+    await apiRequest(app)
+      .patch(`/suppliers/${created.body.id}`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ document: '44555666000199' })
+      .expect(400);
+  });
+
+  it('rejects updating a supplier from a REQUESTER with 403', async () => {
+    cnpjLookupService.lookup.mockResolvedValue({
+      legalName: 'Fornecedor Real LTDA',
+      tradeName: null,
+      zipCode: null,
+      street: null,
+      city: null,
+      state: null,
+      federalRegistrationStatus: null,
+    });
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+
+    const created = await apiRequest(app)
+      .post('/suppliers')
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ document: '19131243000197' })
+      .expect(201);
+
+    await apiRequest(app)
+      .patch(`/suppliers/${created.body.id}`)
+      .set('Authorization', `Bearer ${requester.token}`)
+      .send({ phone: '(11) 90000-0000' })
+      .expect(403);
+  });
 });

@@ -141,6 +141,27 @@ describe('Quotes (e2e)', () => {
       .expect(409);
   });
 
+  // Um fornecedor desativado (isActive: false) tipicamente foi cadastrado
+  // com dado errado (ex: CNPJ) ou parou de operar com a empresa — em
+  // nenhum dos dois casos faz sentido começar uma cotação nova com ele.
+  it('returns 409 when trying to quote an inactive supplier', async () => {
+    const purchaseRequestId = await createSubmittedPurchaseRequest();
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const supplierId = await createSupplier(buyer.token, CNPJ_A);
+
+    await apiRequest(app)
+      .patch(`/suppliers/${supplierId}`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ isActive: false })
+      .expect(200);
+
+    await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ supplierId, totalValue: 100 })
+      .expect(409);
+  });
+
   it('accepts a valid PDF proposal upload (201) and rejects an invalid file type (400)', async () => {
     const purchaseRequestId = await createSubmittedPurchaseRequest();
     const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
@@ -191,6 +212,77 @@ describe('Quotes (e2e)', () => {
       .set('Authorization', `Bearer ${buyer.token}`)
       .expect(200);
     expect(download.headers['content-type']).toContain('application/pdf');
+  });
+
+  // O arquivo fica no banco, mas nunca deve vir nas respostas JSON — antes
+  // um PDF de 1MB transformava a lista e o detalhe em respostas de ~12MB.
+  it('never returns the proposal file content in quote or request JSON responses', async () => {
+    const purchaseRequestId = await createSubmittedPurchaseRequest();
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const supplierId = await createSupplier(buyer.token, CNPJ_A);
+    const oneMegabytePdf = Buffer.concat([
+      Buffer.from('%PDF-1.4\n'),
+      Buffer.alloc(1024 * 1024, 65),
+    ]);
+
+    const created = await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .field('supplierId', String(supplierId))
+      .field('totalValue', '100')
+      .attach('file', oneMegabytePdf, 'proposta.pdf')
+      .expect(201);
+    expect(created.body).not.toHaveProperty('proposalFileContent');
+
+    const list = await apiRequest(app)
+      .get(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .expect(200);
+    expect(list.body[0]).not.toHaveProperty('proposalFileContent');
+    expect(JSON.stringify(list.body).length).toBeLessThan(10_000);
+
+    const detail = await apiRequest(app)
+      .get(`/purchase-requests/${purchaseRequestId}`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .expect(200);
+    expect(JSON.stringify(detail.body).length).toBeLessThan(10_000);
+
+    const download = await apiRequest(app)
+      .get(`/purchase-requests/${purchaseRequestId}/quotes/${created.body.id}/proposal`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .buffer(true)
+      .parse((res, done) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => done(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    expect((download.body as Buffer).length).toBe(oneMegabytePdf.length);
+  });
+
+  it('keeps accented filenames intact from upload to download', async () => {
+    const purchaseRequestId = await createSubmittedPurchaseRequest();
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const supplierId = await createSupplier(buyer.token, CNPJ_A);
+
+    const created = await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .field('supplierId', String(supplierId))
+      .field('totalValue', '100')
+      // "–" (travessão) fica fora do latin1: força o header a usar
+      // filename*=UTF-8''..., o caso que um nome cru entre aspas quebrava.
+      .attach('file', Buffer.from('%PDF-1.4 teste'), 'orçamento – final.pdf')
+      .expect(201);
+    expect(created.body.proposalFileName).toBe('orçamento – final.pdf');
+
+    const download = await apiRequest(app)
+      .get(`/purchase-requests/${purchaseRequestId}/quotes/${created.body.id}/proposal`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .expect(200);
+    expect(download.headers['content-disposition']).toContain(
+      `filename*=UTF-8''${encodeURIComponent('orçamento – final.pdf')}`,
+    );
   });
 
   it('creates a quote via multipart with an empty file field, as some HTTP clients send when no file is chosen', async () => {
@@ -365,5 +457,66 @@ describe('Quotes (e2e)', () => {
     const quoteBFinal = quotes.body.find((q: any) => q.id === quoteB.body.id);
     expect(quoteAFinal.status).toBe('DISCARDED');
     expect(quoteBFinal.status).toBe('SELECTED');
+  });
+
+  it('rejects registering a quote whose validity date already passed (400)', async () => {
+    const purchaseRequestId = await createSubmittedPurchaseRequest();
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const supplierId = await createSupplier(buyer.token, CNPJ_A);
+
+    await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ supplierId, totalValue: 500, validUntil: '2020-01-01' })
+      .expect(400);
+  });
+
+  it('returns 409 when trying to select a quote that expired after being registered', async () => {
+    const purchaseRequestId = await createSubmittedPurchaseRequest();
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const supplierId = await createSupplier(buyer.token, CNPJ_A);
+
+    const quote = await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ supplierId, totalValue: 500 })
+      .expect(201);
+    // Simula o tempo passando: a cotação era válida quando foi registrada.
+    await prisma.quote.update({
+      where: { id: quote.body.id },
+      data: { validUntil: new Date('2020-01-01') },
+    });
+
+    await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/select`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .expect(409);
+  });
+
+  // Mesmo caso do fornecedor inativo, só que num passo mais adiante do
+  // fluxo: a cotação já existia (foi registrada quando o fornecedor ainda
+  // estava ativo), mas ele foi desativado antes de alguém escolhê-la como
+  // vencedora — não pode fechar negócio com ele mesmo assim.
+  it('returns 409 when trying to select a quote whose supplier became inactive', async () => {
+    const purchaseRequestId = await createSubmittedPurchaseRequest();
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const supplierId = await createSupplier(buyer.token, CNPJ_A);
+
+    const quote = await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ supplierId, totalValue: 13500.0 })
+      .expect(201);
+
+    await apiRequest(app)
+      .patch(`/suppliers/${supplierId}`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ isActive: false })
+      .expect(200);
+
+    await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes/${quote.body.id}/select`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .expect(409);
   });
 });

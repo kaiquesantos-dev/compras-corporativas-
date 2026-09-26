@@ -48,6 +48,14 @@ export async function createPurchaseRequest(
   return data
 }
 
+export async function updatePurchaseRequest(
+  id: number,
+  input: { title: string; justification: string },
+): Promise<PurchaseRequest> {
+  const { data } = await apiClient.patch<PurchaseRequest>(`/purchase-requests/${id}`, input)
+  return data
+}
+
 export async function submitPurchaseRequest(id: number): Promise<PurchaseRequest> {
   const { data } = await apiClient.post<PurchaseRequest>(`/purchase-requests/${id}/submit`)
   return data

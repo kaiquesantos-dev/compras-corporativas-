@@ -99,7 +99,8 @@ export class QuotesController {
   })
   @ApiResponse({
     status: 409,
-    description: 'Solicitação não está em um estado que aceite novas cotações.',
+    description:
+      'Solicitação não está em um estado que aceite novas cotações, ou o fornecedor está inativo (isActive: false).',
   })
   @ApiResponse({ status: 413, description: 'Arquivo maior que 5MB.' })
   create(
@@ -208,10 +209,12 @@ export class QuotesController {
         quoteId,
         user,
       );
-    res.set({
-      'Content-Type': mimeType,
-      'Content-Disposition': `attachment; filename="${filename}"`,
-    });
+    // res.attachment() monta o Content-Disposition no padrão RFC 6266/5987
+    // (filename ASCII de fallback + filename*=UTF-8''...), então nomes com
+    // acento ou aspas chegam intactos ao navegador. Antes o nome ia cru
+    // entre aspas — acento virava lixo e uma aspa no nome quebrava o header.
+    res.attachment(filename);
+    res.set('Content-Type', mimeType);
     return new StreamableFile(buffer);
   }
 
@@ -226,7 +229,8 @@ export class QuotesController {
   })
   @ApiResponse({
     status: 409,
-    description: 'Solicitação não está em IN_QUOTATION.',
+    description:
+      'Solicitação não está em IN_QUOTATION, ou o fornecedor desta cotação está inativo (isActive: false).',
   })
   select(
     @Param('purchaseRequestId', ParseIntPipe) purchaseRequestId: number,

@@ -91,46 +91,37 @@ describe('SuppliersService', () => {
   });
 
   describe('update', () => {
-    it('throws BadRequestException instead of silently keeping the old legalName when the document changes and the lookup fails', async () => {
+    // O CNPJ não está em UpdateSupplierDto (é a identidade legal do
+    // fornecedor, trava depois do cadastro — ver o comentário no DTO). Um
+    // "document" nesse body só chegaria aqui contornando o ValidationPipe
+    // (ex: um teste unitário chamando o service direto, como abaixo); ainda
+    // assim o update() atual simplesmente ignora esse campo.
+    it('never re-consults the CNPJ lookup on update, mesmo se "document" vier no body', async () => {
       prisma.supplier.findUnique.mockResolvedValue({ id: 1, document: '11111111000191' });
-      cnpjLookupService.lookup.mockResolvedValue(null);
+      prisma.supplier.update.mockResolvedValue({ id: 1, document: '11111111000191' });
 
-      await expect(
-        service.update(1, { document: '19131243000197' } as any),
-      ).rejects.toThrow(BadRequestException);
-      expect(prisma.supplier.update).not.toHaveBeenCalled();
-    });
+      await service.update(1, { document: '19131243000197', phone: '11999999999' } as any);
 
-    it('still updates normally when the document changes and the lookup succeeds', async () => {
-      prisma.supplier.findUnique.mockResolvedValue({ id: 1, document: '11111111000191' });
-      cnpjLookupService.lookup.mockResolvedValue({
-        legalName: 'Fornecedor Real LTDA',
-        tradeName: null,
-        zipCode: null,
-        street: null,
-        city: null,
-        state: null,
-        federalRegistrationStatus: null,
-      });
-      prisma.supplier.update.mockResolvedValue({ id: 1 });
-
-      await service.update(1, { document: '19131243000197' } as any);
-
+      expect(cnpjLookupService.lookup).not.toHaveBeenCalled();
       expect(prisma.supplier.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ legalName: 'Fornecedor Real LTDA' }),
+          data: expect.not.objectContaining({ document: expect.anything() }),
         }),
       );
     });
 
-    it('does not require a legalName when the document is not being changed', async () => {
+    it('updates contact fields normally', async () => {
       prisma.supplier.findUnique.mockResolvedValue({ id: 1, document: '11111111000191' });
       prisma.supplier.update.mockResolvedValue({ id: 1 });
 
-      await service.update(1, { phone: '11999999999' } as any);
+      await service.update(1, { phone: '11999999999', isActive: false } as any);
 
-      expect(cnpjLookupService.lookup).not.toHaveBeenCalled();
-      expect(prisma.supplier.update).toHaveBeenCalled();
+      expect(prisma.supplier.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: expect.objectContaining({ phone: '11999999999', isActive: false }),
+        }),
+      );
     });
   });
 

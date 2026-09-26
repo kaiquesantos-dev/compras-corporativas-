@@ -32,7 +32,13 @@ export function TextField({
   const fieldId = id ?? generatedId
   const [hasValue, setHasValue] = useState(Boolean(value ?? defaultValue))
   const [focused, setFocused] = useState(false)
-  const floated = focused || hasValue
+  // Campos de data/hora sempre mostram o texto nativo do navegador
+  // ("dd/mm/aaaa"), mesmo vazios — o rótulo precisa ficar no alto, senão os
+  // dois textos se sobrepõem.
+  const alwaysFloated = ['date', 'datetime-local', 'time', 'month'].includes(
+    String((props as InputHTMLAttributes<HTMLInputElement>).type ?? ''),
+  )
+  const floated = focused || hasValue || alwaysFloated
 
   const fieldClassName = cn(
     'peer w-full rounded-[5px] border bg-surface-card px-4 pt-5 pb-2 font-bold text-ink outline-none transition-colors',

@@ -58,13 +58,23 @@ export function NewPurchaseRequestPage() {
       <h1 className="mb-6 font-sans text-3xl font-bold text-accent italic">_Nova solicitação</h1>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-[6px] bg-surface-card p-6 shadow-card">
-        <TextField label="Título" value={title} onChange={(e) => setTitle(e.target.value)} required />
+        <TextField
+          label="Título"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          minLength={3}
+          maxLength={200}
+        />
         <TextField
           label="Justificativa"
           multiline
           value={justification}
           onChange={(e) => setJustification(e.target.value)}
           required
+          minLength={10}
+          maxLength={2000}
+          hint={`${justification.length}/2000 caracteres`}
         />
 
         <div>
@@ -73,19 +83,22 @@ export function NewPurchaseRequestPage() {
             {items.map((item, index) => (
               <div
                 key={index}
-                className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_100px_100px_auto] sm:items-center"
+                className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_90px_100px_130px_auto] sm:items-center"
               >
                 <TextField
                   label="Descrição"
                   value={item.description}
                   onChange={(e) => updateItem(index, { description: e.target.value })}
                   required
+                  maxLength={200}
                   className="col-span-2 sm:col-span-1"
                 />
                 <TextField
                   label="Qtd."
                   type="number"
                   min={1}
+                  max={100000}
+                  step={1}
                   value={item.quantity}
                   onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
                   required
@@ -95,6 +108,21 @@ export function NewPurchaseRequestPage() {
                   value={item.unit}
                   onChange={(e) => updateItem(index, { unit: e.target.value })}
                   required
+                  maxLength={30}
+                />
+                <TextField
+                  label="Preço unit. (R$)"
+                  type="number"
+                  min={0}
+                  max={1000000000}
+                  step="0.01"
+                  value={item.estimatedUnitPrice ?? ''}
+                  onChange={(e) =>
+                    updateItem(index, {
+                      estimatedUnitPrice: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                  className="col-span-2 sm:col-span-1"
                 />
                 <button
                   type="button"

@@ -1,3 +1,4 @@
+import { useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
@@ -6,12 +7,23 @@ import {
   completePurchaseRequest,
   fetchPurchaseRequest,
   submitPurchaseRequest,
+  updatePurchaseRequest,
 } from '../api/purchase-requests'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Button } from '../components/ui/Button'
+import { TextField } from '../components/ui/TextField'
+import { Modal } from '../components/ui/Modal'
 import { QuotesSection } from '../components/quotes/QuotesSection'
 import { StatusHistory } from '../components/purchase-requests/StatusHistory'
 import { useAuthStore } from '../store/auth-store'
+import { actsAsAdmin } from '../lib/roles'
+import type { PurchaseRequest } from '../api/types'
+
+function errorMessage(err: unknown, fallback: string): string {
+  if (!isAxiosError(err)) return fallback
+  const message = (err.response?.data as { message?: string | string[] } | undefined)?.message
+  return Array.isArray(message) ? message.join(' ') : (message ?? fallback)
+}
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -37,9 +49,18 @@ export function PurchaseRequestDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['purchase-request-history', purchaseRequestId] })
   }
 
+  const [editing, setEditing] = useState(false)
   const submitMutation = useMutation({ mutationFn: submitPurchaseRequest, onSuccess: invalidate })
   const cancelMutation = useMutation({ mutationFn: cancelPurchaseRequest, onSuccess: invalidate })
   const completeMutation = useMutation({ mutationFn: completePurchaseRequest, onSuccess: invalidate })
+  const updateMutation = useMutation({
+    mutationFn: (input: { title: string; justification: string }) =>
+      updatePurchaseRequest(purchaseRequestId, input),
+    onSuccess: () => {
+      invalidate()
+      setEditing(false)
+    },
+  })
 
   if (isLoading) {
     return <p className="text-ink-muted">Carregando...</p>
@@ -67,8 +88,13 @@ export function PurchaseRequestDetailPage() {
   }
 
   const isOwner = user?.id === pr.requesterId
-  const isBuyerOrAdmin = user?.role === 'BUYER' || user?.role === 'ADMIN'
+  const isAdmin = actsAsAdmin(user)
+  const isBuyerOrAdmin = user?.role === 'BUYER' || isAdmin
   const canSubmit = isOwner && pr.status === 'DRAFT'
+  // Editar título/justificativa só faz sentido em DRAFT: depois de submeter,
+  // a solicitação já entrou no fluxo de cotação/aprovação (mesma regra do
+  // backend, em purchase-requests.service.ts update()).
+  const canEdit = isOwner && pr.status === 'DRAFT'
   // A partir de IN_QUOTATION o comprador já está negociando com
   // fornecedores de verdade — o dono (REQUESTER) não pode mais cancelar
   // sozinho nesse ponto em diante, só BUYER ou ADMIN (mesma regra aplicada
@@ -76,7 +102,7 @@ export function PurchaseRequestDetailPage() {
   const canCancel =
     pr.status === 'IN_QUOTATION'
       ? isBuyerOrAdmin
-      : (isOwner || user?.role === 'ADMIN') && ['DRAFT', 'SUBMITTED'].includes(pr.status)
+      : (isOwner || isAdmin) && ['DRAFT', 'SUBMITTED'].includes(pr.status)
   const canComplete = isBuyerOrAdmin && pr.status === 'APPROVED'
   const showQuotes = pr.status !== 'DRAFT'
 
@@ -90,7 +116,17 @@ export function PurchaseRequestDetailPage() {
             {pr.requester ? ` por ${pr.requester.name}` : ''}
           </p>
         </div>
-        <StatusBadge status={pr.status} />
+        <div className="flex items-center gap-3">
+          {canEdit && (
+            <button
+              onClick={() => setEditing(true)}
+              className="text-xs font-semibold text-ink-muted uppercase hover:text-accent-text"
+            >
+              Editar
+            </button>
+          )}
+          <StatusBadge status={pr.status} />
+        </div>
       </div>
 
       <div className="mb-6 rounded-[6px] bg-surface-card p-6 shadow-card">
@@ -152,6 +188,68 @@ export function PurchaseRequestDetailPage() {
           )}
         </div>
       )}
+
+      {editing && (
+        <EditPurchaseRequestModal
+          pr={pr}
+          onClose={() => setEditing(false)}
+          onSubmit={(input) => updateMutation.mutate(input)}
+          pending={updateMutation.isPending}
+          error={updateMutation.error}
+        />
+      )}
     </div>
+  )
+}
+
+function EditPurchaseRequestModal({
+  pr,
+  onClose,
+  onSubmit,
+  pending,
+  error,
+}: {
+  pr: PurchaseRequest
+  onClose: () => void
+  onSubmit: (input: { title: string; justification: string }) => void
+  pending: boolean
+  error: unknown
+}) {
+  const [title, setTitle] = useState(pr.title)
+  const [justification, setJustification] = useState(pr.justification)
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    onSubmit({ title, justification })
+  }
+
+  return (
+    <Modal title="_Editar solicitação" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <TextField
+          label="Título"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          autoFocus
+          minLength={3}
+          maxLength={200}
+        />
+        <TextField
+          label="Justificativa"
+          multiline
+          value={justification}
+          onChange={(e) => setJustification(e.target.value)}
+          required
+          minLength={10}
+          maxLength={2000}
+          hint={`${justification.length}/2000 caracteres`}
+        />
+        {error ? <p className="text-sm text-accent-text">{errorMessage(error, 'Não foi possível salvar.')}</p> : null}
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Salvando...' : 'Salvar alterações'}
+        </Button>
+      </form>
+    </Modal>
   )
 }
