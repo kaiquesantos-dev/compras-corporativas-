@@ -105,6 +105,30 @@ Isso builda a imagem da API, sobe o Postgres e roda as migrations automaticament
 docker compose exec api npx prisma db seed
 ```
 
+### Testando pelo Swagger (`http://localhost:3000/docs`)
+
+Toda rota exige o header `X-API-KEY`, e as rotas protegidas exigem também o token JWT. No Swagger:
+
+1. Clique em **Authorize** (cadeado no topo da página).
+2. Em `x-api-key`, cole o valor de `API_KEY` do seu `.env` (com o `.env.example` sem alterações: `troque-esta-chave-de-api-em-producao-1234567890`) e clique em **Authorize**.
+3. Abra `POST /auth/login` → **Try it out** → use um usuário do seed (ex: `{"email":"admin@compras.com","password":"senha123"}`) → **Execute**. Copie o `access_token` da resposta.
+4. Clique em **Authorize** de novo e cole o token no campo `bearer`. A partir daí, todas as rotas podem ser testadas com esse usuário.
+
+Sem o passo 2, qualquer chamada responde `401 Não autorizado`. Para testar outro papel (ex: aprovar como APPROVER), faça login com outro usuário do seed e troque o token no `bearer`.
+
+### Frontend (opcional)
+
+Interface web em React que consome a API. Com a API rodando em `http://localhost:3000`:
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Abra `http://localhost:5173` e entre com qualquer usuário do seed (senha `senha123`). O `VITE_API_KEY` do `frontend/.env.example` já é igual ao `API_KEY` do `.env.example` da API; se você mudar um, mude o outro.
+
 ## Testes
 
 Testes unitários (services isolados, sem banco):
