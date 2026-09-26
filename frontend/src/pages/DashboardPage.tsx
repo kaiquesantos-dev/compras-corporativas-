@@ -286,7 +286,10 @@ export function DashboardPage() {
               accent
             />
             <KpiCard
-              label="Tempo médio de aprovação"
+              // Do envio até a decisão do aprovador — conta aprovações E
+              // rejeições (é o tempo de resposta da aprovação, não só das
+              // aprovadas), por isso não se chama "tempo médio de aprovação".
+              label="Tempo médio de decisão"
               value={formatApprovalTime(metrics.averageApprovalTimeHours)}
             />
           </div>

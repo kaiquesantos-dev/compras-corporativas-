@@ -289,5 +289,5 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 - Documentação Swagger completa, em português, com exemplos realistas (`/docs`).
 - Seed com dados de demonstração cobrindo todo o ciclo de vida.
 - Containerização completa (API + banco) via Docker Compose, com migrations automáticas no startup.
-- Indicador de domínio: `GET /purchase-requests/metrics` (contagem por status, valor total aprovado, tempo médio de aprovação).
+- Indicador de domínio: `GET /purchase-requests/metrics` (contagem por status, valor total aprovado, tempo médio de decisão, do envio até a aprovação ou rejeição).
 - Suíte de testes end-to-end cobrindo os 10 cenários obrigatórios do enunciado.

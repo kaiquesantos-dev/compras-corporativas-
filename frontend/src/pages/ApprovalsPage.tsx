@@ -51,15 +51,24 @@ export function ApprovalsPage() {
     queryFn: () => fetchPurchaseRequests({ status: 'REJECTED', pageSize: HISTORY_PAGE_SIZE }),
     enabled: tab === 'history',
   })
+  // Uma solicitação aprovada que depois teve a compra concluída sai de
+  // APPROVED e vira COMPLETED — sem esta terceira busca, toda aprovação que
+  // virou compra de verdade sumia do histórico de decisões.
+  const { data: completedData, isLoading: completedLoading } = useQuery({
+    queryKey: ['purchase-requests', 'decision-history', 'COMPLETED'],
+    queryFn: () => fetchPurchaseRequests({ status: 'COMPLETED', pageSize: HISTORY_PAGE_SIZE }),
+    enabled: tab === 'history',
+  })
 
-  const history: PurchaseRequest[] = [...(approvedData?.data ?? []), ...(rejectedData?.data ?? [])].sort(
-    (a, b) =>
-      new Date(b.decidedAt ?? b.createdAt).getTime() - new Date(a.decidedAt ?? a.createdAt).getTime(),
-  )
-  const historyLoading = approvedLoading || rejectedLoading
-  const historyTruncated =
-    (approvedData && approvedData.total > approvedData.data.length) ||
-    (rejectedData && rejectedData.total > rejectedData.data.length)
+  const historySources = [approvedData, rejectedData, completedData]
+  const history: PurchaseRequest[] = historySources
+    .flatMap((source) => source?.data ?? [])
+    .sort(
+      (a, b) =>
+        new Date(b.decidedAt ?? b.createdAt).getTime() - new Date(a.decidedAt ?? a.createdAt).getTime(),
+    )
+  const historyLoading = approvedLoading || rejectedLoading || completedLoading
+  const historyTruncated = historySources.some((source) => source && source.total > source.data.length)
 
   const decideMutation = useMutation({
     mutationFn: (input: { id: number; decision: 'APPROVED' | 'REJECTED' }) =>
@@ -187,8 +196,9 @@ export function ApprovalsPage() {
       {tab === 'history' && (
         <>
           <p className="mb-6 text-sm text-ink-muted">
-            Todas as solicitações já decididas — aprovadas ou rejeitadas. Cada linha leva ao histórico
-            completo de status da solicitação, incluindo quem decidiu e quando.
+            Todas as solicitações já decididas — aprovadas (inclusive as que já tiveram a compra
+            concluída) ou rejeitadas. Cada linha leva ao histórico completo de status da solicitação,
+            incluindo quem decidiu e quando.
           </p>
 
           {historyLoading && <p className="text-ink-muted">Carregando...</p>}
@@ -199,7 +209,7 @@ export function ApprovalsPage() {
 
           {!historyLoading && historyTruncated && (
             <p className="mb-4 text-xs text-ink-muted">
-              Mostrando as {HISTORY_PAGE_SIZE} decisões mais recentes de cada tipo (aprovada/rejeitada).
+              Mostrando as {HISTORY_PAGE_SIZE} decisões mais recentes de cada tipo (aprovada, concluída, rejeitada).
               Há mais decisões além dessas.
             </p>
           )}

@@ -86,7 +86,7 @@ export class PurchaseRequestsController {
   @ApiOperation({
     summary: 'Indicadores de compras',
     description:
-      '**Papéis permitidos:** BUYER, APPROVER, ADMIN\n\nContagem de solicitações por status, valor total aprovado e tempo médio de aprovação (em horas). Aceita "from"/"to" para restringir o período às solicitações criadas nesse intervalo.',
+      '**Papéis permitidos:** BUYER, APPROVER, ADMIN\n\nContagem de solicitações por status, valor total aprovado e tempo médio de decisão, em horas (do envio até a aprovação ou rejeição). Aceita "from"/"to" para restringir o período às solicitações criadas nesse intervalo.',
   })
   metrics(@Query() query: PurchaseMetricsQueryDto) {
     const from = query.from ? new Date(query.from) : undefined;
