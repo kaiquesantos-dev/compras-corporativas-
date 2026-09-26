@@ -7,6 +7,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { LoginThrottlerGuard } from './login-throttler.guard';
 import { CurrentUser } from './current-user.decorator';
 import type { AuthenticatedUser } from './types/authenticated-user.type';
 import { AuthService } from './auth.service';
@@ -24,6 +25,7 @@ export class AuthController {
   // POST, mas login não cria nenhum recurso novo, então 200 é o correto.
   @Post('login')
   @HttpCode(200)
+  @UseGuards(LoginThrottlerGuard)
   @ApiOperation({
     summary: 'Autenticar usuário',
     description:
@@ -40,6 +42,11 @@ export class AuthController {
   @ApiResponse({
     status: 401,
     description: 'Email não cadastrado ou senha incorreta.',
+  })
+  @ApiResponse({
+    status: 429,
+    description:
+      'Muitas tentativas seguidas para o mesmo e-mail a partir da mesma origem (padrão: 5 por minuto, configurável em LOGIN_MAX_ATTEMPTS_PER_MINUTE). Proteção contra tentativa de adivinhar senha.',
   })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto.email, dto.password);

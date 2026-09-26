@@ -152,6 +152,10 @@ model Quote {
   selectedFor PurchaseRequest? @relation("SelectedQuote")
 
   @@index([purchaseRequestId])
+  // Uma cotação por fornecedor por solicitação — garante a regra mesmo com
+  // duas requisições simultâneas (a checagem no QuotesService sozinha tem
+  // uma janela de corrida entre o "já existe?" e o insert).
+  @@unique([purchaseRequestId, supplierId])
 }
 
 model Approval {

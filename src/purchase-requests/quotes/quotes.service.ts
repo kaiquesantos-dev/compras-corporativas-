@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { AuthenticatedUser } from '../../auth/types/authenticated-user.type';
 import { PurchaseRequestStatusService } from '../purchase-request-status.service';
@@ -14,6 +15,9 @@ import { OMIT_PROPOSAL_CONTENT } from './omit-proposal-content';
 // A validade de uma cotação é uma data (ex: "2026-12-31"), e o fornecedor
 // garante o preço até o fim desse dia — então ela só está vencida a partir
 // do dia seguinte. Comparamos só a parte da data (UTC), sem hora.
+const DUPLICATE_SUPPLIER_QUOTE_MESSAGE =
+  'Este fornecedor já tem uma cotação registrada nesta solicitação. Cada fornecedor participa com uma única cotação.';
+
 // O multer (busboy) lê o nome do arquivo do multipart como latin1, mas o
 // navegador envia em UTF-8 — sem isto, "orçamento.pdf" era gravado como
 // "orÃ§amento.pdf". Reinterpretamos os bytes como UTF-8; se isso gerar
@@ -88,9 +92,7 @@ export class QuotesService {
       select: { id: true },
     });
     if (existingFromSupplier) {
-      throw new ConflictException(
-        'Este fornecedor já tem uma cotação registrada nesta solicitação. Cada fornecedor participa com uma única cotação.',
-      );
+      throw new ConflictException(DUPLICATE_SUPPLIER_QUOTE_MESSAGE);
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -149,6 +151,17 @@ export class QuotesService {
         },
         omit: OMIT_PROPOSAL_CONTENT,
       });
+    }).catch((err: unknown) => {
+      // Duas requisições simultâneas do mesmo fornecedor passam juntas pela
+      // checagem "já existe?" acima; a restrição única do banco
+      // (purchaseRequestId + supplierId) barra a segunda com P2002.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        throw new ConflictException(DUPLICATE_SUPPLIER_QUOTE_MESSAGE);
+      }
+      throw err;
     });
   }
 

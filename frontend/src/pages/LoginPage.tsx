@@ -49,6 +49,8 @@ export function LoginPage() {
       if (isAxiosError(err)) {
         if (err.response?.status === 401) {
           message = 'E-mail ou senha incorretos.'
+        } else if (err.response?.status === 429) {
+          message = 'Muitas tentativas seguidas. Aguarde um minuto e tente novamente.'
         } else if (err.response?.status === 400) {
           const backendMessage = (err.response?.data as { message?: string } | undefined)?.message
           message = backendMessage ?? 'Dados inválidos.'

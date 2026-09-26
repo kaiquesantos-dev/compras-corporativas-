@@ -58,6 +58,7 @@ cp .env.example .env
 | `CNPJ_API_BASE_URL` | URL base da BrasilAPI usada para consultar CNPJ de fornecedores. |
 | `CNPJ_API_TIMEOUT_MS` | Timeout (em ms) para a consulta de CNPJ antes de considerar a integração externa indisponível. |
 | `CORS_ORIGIN` | Origens (separadas por vírgula) autorizadas a chamar a API via CORS. Opcional — sem ela, cai no default `http://localhost:5173` (o frontend em dev). Em produção, aponte pro domínio real do frontend; a API nunca libera "qualquer origem". |
+| `LOGIN_MAX_ATTEMPTS_PER_MINUTE` | Tentativas de login permitidas por minuto para o mesmo e-mail a partir da mesma origem. Opcional — padrão `5`. |
 
 Para os testes automatizados, copie também `.env.test.example` para `.env.test` (já aponta para o banco de teste na porta `5433`).
 
@@ -147,6 +148,7 @@ O seed também cria 5 departamentos, 6 fornecedores e 15 solicitações de compr
 - Autorização por papel: `REQUESTER`, `BUYER`, `APPROVER`, `ADMIN` — ver a matriz de permissões na tabela de endpoints abaixo.
 - Senhas nunca são retornadas em nenhuma resposta (nem nas relações aninhadas, como `requester` dentro de uma solicitação de compra).
 - `.env`/`.env.test` nunca são versionados (estão no `.gitignore`); apenas `.env.example`/`.env.test.example`, com placeholders.
+- Limite de tentativas de login: no máximo 5 por minuto para o mesmo e-mail a partir da mesma origem (`429` a partir da 6ª, mesmo com a senha certa). O limite é por conta + IP, então quem tenta adivinhar a senha de uma conta é barrado sem travar os outros usuários da mesma rede.
 - CORS restrito às origens de `CORS_ORIGIN` (nunca "qualquer origem") — ver seção de configuração do `.env`.
 - `JWT_SECRET`/`API_KEY` exigem no mínimo 32 caracteres; a aplicação recusa subir com um valor mais curto.
 - Delegação de acesso ADMIN (`isAdminDelegate`) tem proteções próprias contra escalonamento de privilégio — ver a nota na tabela de endpoints de Usuários.
@@ -204,7 +206,7 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 
 | Método | URL | Auth | Body | Respostas |
 |---|---|---|---|---|
-| POST | `/auth/login` | público | `{ email, password }` | `200` token · `400` inválido · `401` credenciais erradas |
+| POST | `/auth/login` | público | `{ email, password }` | `200` token · `400` inválido · `401` credenciais erradas · `429` muitas tentativas seguidas (5/min por e-mail + origem) |
 | GET | `/auth/me` | - | — | `200` `{ id, email, role, isAdminDelegate }` do usuário autenticado, revalidado no banco a cada chamada (útil pro frontend perceber uma delegação de acesso concedida/revogada sem precisar de novo login) · `401` |
 
 ### Usuários (`/users`) — somente ADMIN

@@ -59,6 +59,44 @@ describe('Auth (e2e)', () => {
       .expect(401);
   });
 
+  // Proteção contra adivinhar senha: depois de 5 tentativas por minuto para
+  // o mesmo e-mail (a partir da mesma origem), a 6ª é barrada com 429 — mesmo
+  // com a senha certa. Outra conta, na mesma origem, continua entrando.
+  it('blocks the 6th login attempt within a minute for the same e-mail with 429', async () => {
+    const department = await prisma.department.create({
+      data: { name: 'Depto Limite' },
+    });
+    for (const email of ['alvo@teste.com', 'outra@teste.com']) {
+      await prisma.user.create({
+        data: {
+          name: 'Teste',
+          email,
+          password: await bcrypt.hash('senha-certa', 10),
+          role: 'REQUESTER',
+          departmentId: department.id,
+        },
+      });
+    }
+
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      await apiRequest(app)
+        .post('/auth/login')
+        .send({ email: 'alvo@teste.com', password: `errada-${attempt}` })
+        .expect(401);
+    }
+
+    const blocked = await apiRequest(app)
+      .post('/auth/login')
+      .send({ email: 'alvo@teste.com', password: 'senha-certa' })
+      .expect(429);
+    expect(blocked.body.message).toContain('Aguarde um minuto');
+
+    await apiRequest(app)
+      .post('/auth/login')
+      .send({ email: 'outra@teste.com', password: 'senha-certa' })
+      .expect(200);
+  });
+
   it('rejects an invalid body (bad email format) with 400', async () => {
     await apiRequest(app)
       .post('/auth/login')

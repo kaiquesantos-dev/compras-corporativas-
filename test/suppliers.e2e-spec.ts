@@ -109,6 +109,20 @@ describe('Suppliers (e2e)', () => {
     expect(response.body.message).toContain('BAIXADA');
   });
 
+  it('rejects an invalid isActive filter with 400 instead of silently treating it as false', async () => {
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    for (const value of ['abc', 'sim', '1']) {
+      await apiRequest(app)
+        .get(`/suppliers?isActive=${value}`)
+        .set('Authorization', `Bearer ${buyer.token}`)
+        .expect(400);
+    }
+    await apiRequest(app)
+      .get('/suppliers?isActive=false')
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .expect(200);
+  });
+
   it('rejects an invalid CNPJ format with 400', async () => {
     const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
 

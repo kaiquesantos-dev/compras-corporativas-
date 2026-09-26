@@ -7,6 +7,7 @@ import { decideApproval } from '../api/approvals'
 import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { Pagination } from '../components/ui/Pagination'
 import { useConfirm } from '../hooks/confirm-context'
 import { useAuthStore } from '../store/auth-store'
 import type { PurchaseRequest } from '../api/types'
@@ -28,10 +29,13 @@ export function ApprovalsPage() {
   const currentUserId = useAuthStore((state) => state.user?.id)
   const [comments, setComments] = useState<Record<number, string>>({})
   const [tab, setTab] = useState<Tab>('pending')
+  const [pendingPage, setPendingPage] = useState(1)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['purchase-requests', 'pending-approval'],
-    queryFn: () => fetchPurchaseRequests({ status: 'PENDING_APPROVAL', pageSize: 50 }),
+    // Paginado: antes buscava só as 50 primeiras, sem aviso — a partir da
+    // 51ª, a solicitação simplesmente não aparecia pra ninguém aprovar.
+    queryKey: ['purchase-requests', 'pending-approval', pendingPage],
+    queryFn: () => fetchPurchaseRequests({ status: 'PENDING_APPROVAL', page: pendingPage, pageSize: 20 }),
   })
 
   // A API só filtra por um status de cada vez — pra juntar aprovadas e
@@ -190,6 +194,14 @@ export function ApprovalsPage() {
               </div>
             ))}
           </div>
+          {data && (
+            <Pagination
+              page={data.page}
+              pageSize={data.pageSize}
+              total={data.total}
+              onPageChange={setPendingPage}
+            />
+          )}
         </>
       )}
 

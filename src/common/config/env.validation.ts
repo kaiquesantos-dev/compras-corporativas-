@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  Min,
   MinLength,
   validateSync,
 } from 'class-validator';
@@ -74,6 +75,13 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   CORS_ORIGIN?: string;
+
+  // Tentativas de login permitidas por minuto para o mesmo e-mail a partir
+  // da mesma origem (proteção contra adivinhar senha). Opcional: padrão 5.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  LOGIN_MAX_ATTEMPTS_PER_MINUTE?: number;
 }
 
 // Função chamada automaticamente pelo ConfigModule assim que a aplicação

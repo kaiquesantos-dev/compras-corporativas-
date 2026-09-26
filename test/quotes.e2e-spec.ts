@@ -487,6 +487,38 @@ describe('Quotes (e2e)', () => {
       .expect(409);
   });
 
+  // Corrida: duas cotações do mesmo fornecedor chegando ao mesmo tempo
+  // passam juntas pela checagem "já existe?" — a restrição única do banco
+  // barra a segunda, que precisa virar 409 (nunca 500).
+  it('handles two simultaneous quotes from the same supplier: one 201, one 409', async () => {
+    const purchaseRequestId = await createSubmittedPurchaseRequest();
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const supplierId = await createSupplier(buyer.token, CNPJ_A);
+    // Primeira cotação move a solicitação para IN_QUOTATION antes da corrida,
+    // para as duas chamadas simultâneas disputarem só a regra do fornecedor.
+    const otherSupplierId = await createSupplier(buyer.token, CNPJ_B);
+    await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ supplierId: otherSupplierId, totalValue: 500 })
+      .expect(201);
+
+    const [first, second] = await Promise.all(
+      [1000, 900].map((totalValue) =>
+        apiRequest(app)
+          .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+          .set('Authorization', `Bearer ${buyer.token}`)
+          .send({ supplierId, totalValue }),
+      ),
+    );
+
+    expect([first.status, second.status].sort()).toEqual([201, 409]);
+    const quotes = await prisma.quote.count({
+      where: { purchaseRequestId, supplierId },
+    });
+    expect(quotes).toBe(1);
+  });
+
   it('rejects registering a quote whose validity date already passed (400)', async () => {
     const purchaseRequestId = await createSubmittedPurchaseRequest();
     const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
