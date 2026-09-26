@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
+import { actsAsAdmin } from '../auth/acts-as-admin';
 
 @Injectable()
 export class PurchaseRequestsMetricsService {
@@ -12,7 +14,17 @@ export class PurchaseRequestsMetricsService {
   // hoje ou acumulado desde o início do sistema. Quem monta o intervalo
   // (presets como "últimos 7 dias" ou um range escolhido à mão) é o
   // frontend; aqui só aplicamos o filtro que vier.
-  async getMetrics(from?: Date, to?: Date) {
+  async getMetrics(user: AuthenticatedUser, from?: Date, to?: Date) {
+    // Rascunho é privado até ser submetido: comprador/aprovador não contam
+    // os rascunhos de outras pessoas (só o admin, inclusive o delegado, vê
+    // todos). Os demais indicadores (valor aprovado, tempo de decisão) só
+    // envolvem solicitações já submetidas, então não mudam.
+    const draftPrivacyFilter: Prisma.PurchaseRequestWhereInput = actsAsAdmin(
+      user,
+    )
+      ? {}
+      : { OR: [{ status: { not: 'DRAFT' } }, { requesterId: user.id }] };
+
     const createdAtFilter =
       from || to
         ? {
@@ -28,7 +40,7 @@ export class PurchaseRequestsMetricsService {
         this.prisma.purchaseRequest.groupBy({
           by: ['status'],
           _count: { _all: true },
-          where: createdAtFilter,
+          where: { ...createdAtFilter, ...draftPrivacyFilter },
         }),
         // Soma feita no banco (SUM), não carregando cada linha pra somar em
         // JS: antes disso era um findMany() sem limite trazendo TODAS as

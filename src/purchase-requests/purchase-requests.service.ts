@@ -13,7 +13,8 @@ import { UpdatePurchaseRequestDto } from './dto/update-purchase-request.dto';
 import { PurchaseRequestQueryDto } from './dto/purchase-request-query.dto';
 import { PurchaseRequestStatusService } from './purchase-request-status.service';
 import { OMIT_PROPOSAL_CONTENT } from './quotes/omit-proposal-content';
-import { PurchaseRequestStatus } from '../generated/prisma/client';
+import { Prisma, PurchaseRequestStatus } from '../generated/prisma/client';
+import { actsAsAdmin } from '../auth/acts-as-admin';
 
 const CANCELLABLE_STATUSES: PurchaseRequestStatus[] = [
   'DRAFT',
@@ -84,9 +85,13 @@ export class PurchaseRequestsService {
       'createdAt',
     );
 
-    const where: Record<string, unknown> = {};
+    const where: Prisma.PurchaseRequestWhereInput = {};
     if (user.role === 'REQUESTER') {
       where.requesterId = user.id;
+    } else if (!actsAsAdmin(user)) {
+      // BUYER/APPROVER veem tudo, menos rascunhos de outras pessoas: um
+      // rascunho ainda não foi enviado, é trabalho em andamento do dono.
+      where.OR = [{ status: { not: 'DRAFT' } }, { requesterId: user.id }];
     }
     if (query.status) {
       where.status = query.status;
@@ -190,10 +195,9 @@ export class PurchaseRequestsService {
       throw new NotFoundException('Solicitação de compra não encontrada.');
     }
 
-    // Um APPROVER com acesso ADMIN delegado (isAdminDelegate) cobre o admin
-    // por completo, inclusive aqui — o RolesGuard já o deixa entrar nesta
-    // rota como ADMIN, e sem isto ele levava 403 logo em seguida.
-    const actsAsAdmin = user.role === 'ADMIN' || user.isAdminDelegate;
+    // Um APPROVER com acesso ADMIN delegado cobre o admin por completo,
+    // inclusive aqui — o RolesGuard já o deixa entrar nesta rota como ADMIN.
+    const isAdmin = actsAsAdmin(user);
     const isOwner = pr.requesterId === user.id;
 
     // 1) Um REQUESTER não enxerga solicitações de outras pessoas — responde
@@ -214,7 +218,7 @@ export class PurchaseRequestsService {
     }
 
     // 3) Quem pode cancelar, conforme a fase.
-    if (!actsAsAdmin) {
+    if (!isAdmin) {
       if (pr.status === 'IN_QUOTATION' && user.role !== 'BUYER') {
         throw new ForbiddenException(
           'A partir de "Em cotação", só um comprador ou administrador pode cancelar esta solicitação.',
@@ -287,12 +291,21 @@ export class PurchaseRequestsService {
   // ver qualquer uma. É esta função que impede alguém de trocar o ID na
   // URL e espiar a solicitação de outra pessoa.
   private assertViewAccess(
-    pr: { requesterId: number },
+    pr: { requesterId: number; status: PurchaseRequestStatus },
     user: AuthenticatedUser,
   ) {
-    if (user.role === 'REQUESTER' && pr.requesterId !== user.id) {
+    const isOwner = pr.requesterId === user.id;
+    if (user.role === 'REQUESTER' && !isOwner) {
       throw new ForbiddenException(
         'Você não tem acesso a esta solicitação de compra.',
+      );
+    }
+    // Rascunho é privado até ser submetido: só o dono e o admin (inclusive
+    // o delegado) enxergam. Isso cobre detalhe, histórico, cotações e
+    // aprovação, que passam todos por aqui.
+    if (pr.status === 'DRAFT' && !isOwner && !actsAsAdmin(user)) {
+      throw new ForbiddenException(
+        'Esta solicitação ainda é um rascunho e só pode ser vista por quem a criou.',
       );
     }
   }

@@ -26,6 +26,20 @@ export class SuppliersService {
 
   async create(dto: CreateSupplierDto) {
     const enrichment = await this.cnpjLookupService.lookup(dto.document);
+
+    // Empresa BAIXADA, INAPTA, SUSPENSA ou NULA na Receita não pode emitir
+    // nota fiscal — não faz sentido cadastrá-la como fornecedor (abriria a
+    // porta pra cotar e comprar com ela). Só dá pra checar quando a consulta
+    // respondeu; se a BrasilAPI estiver fora do ar, o cadastro manual
+    // continua possível (mesmo fallback de sempre).
+    const federalStatus = enrichment?.federalRegistrationStatus
+      ?.trim()
+      .toUpperCase();
+    if (federalStatus && federalStatus !== 'ATIVA') {
+      throw new ConflictException(
+        `Este CNPJ está com situação cadastral "${federalStatus}" na Receita Federal. Só é possível cadastrar fornecedores com CNPJ ATIVO.`,
+      );
+    }
     // Regra de prioridade: se o cliente digitou o campo manualmente, esse
     // valor manda. Só usamos o dado vindo da consulta de CNPJ para
     // preencher o que ficou em branco.

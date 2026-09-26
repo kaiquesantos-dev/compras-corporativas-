@@ -67,7 +67,7 @@ export class PurchaseRequestsController {
   @ApiOperation({
     summary: 'Listar solicitações de compra',
     description:
-      '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN\n\n*(REQUESTER vê apenas as próprias; BUYER/APPROVER/ADMIN veem todas)*',
+      '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN\n\n*(REQUESTER vê apenas as próprias; BUYER/APPROVER veem todas exceto rascunhos (DRAFT) de outras pessoas — rascunho é privado até ser submetido; ADMIN vê todas)*',
   })
   findAll(
     @Query() query: PurchaseRequestQueryDto,
@@ -88,20 +88,23 @@ export class PurchaseRequestsController {
     description:
       '**Papéis permitidos:** BUYER, APPROVER, ADMIN\n\nContagem de solicitações por status, valor total aprovado e tempo médio de decisão, em horas (do envio até a aprovação ou rejeição). Aceita "from"/"to" para restringir o período às solicitações criadas nesse intervalo.',
   })
-  metrics(@Query() query: PurchaseMetricsQueryDto) {
+  metrics(
+    @Query() query: PurchaseMetricsQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     const from = query.from ? new Date(query.from) : undefined;
     // "to" chega como uma data pura (ex: "2026-08-31"), que o JS interpreta
     // como meia-noite — sem levar até o fim do dia, o próprio dia final
     // ficaria de fora do filtro (23:59:59 daquele dia é "depois" da meia-noite).
     const to = query.to ? new Date(`${query.to.slice(0, 10)}T23:59:59.999Z`) : undefined;
-    return this.metricsService.getMetrics(from, to);
+    return this.metricsService.getMetrics(user, from, to);
   }
 
   @Get(':id')
   @ApiOperation({
     summary: 'Buscar solicitação por ID',
     description:
-      '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN\n\n*(REQUESTER vê apenas as próprias)*',
+      '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN\n\n*(REQUESTER vê apenas as próprias; um rascunho (DRAFT) só é visível para quem o criou e para o ADMIN)*',
   })
   @ApiResponse({
     status: 403,

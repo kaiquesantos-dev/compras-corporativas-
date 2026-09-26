@@ -86,6 +86,29 @@ describe('Suppliers (e2e)', () => {
     );
   });
 
+  // Uma empresa BAIXADA/INAPTA/SUSPENSA na Receita não pode vender para a
+  // empresa — cadastrar como fornecedor ativo abriria a porta pra cotação e
+  // compra com um CNPJ que não pode emitir nota fiscal.
+  it('rejects a supplier whose CNPJ is not ATIVA at the Receita Federal (409)', async () => {
+    cnpjLookupService.lookup.mockResolvedValue({
+      legalName: 'Empresa Fechada LTDA',
+      tradeName: null,
+      zipCode: null,
+      street: null,
+      city: null,
+      state: null,
+      federalRegistrationStatus: 'BAIXADA',
+    });
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+
+    const response = await apiRequest(app)
+      .post('/suppliers')
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ document: '19131243000197' })
+      .expect(409);
+    expect(response.body.message).toContain('BAIXADA');
+  });
+
   it('rejects an invalid CNPJ format with 400', async () => {
     const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
 

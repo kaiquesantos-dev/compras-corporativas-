@@ -79,6 +79,19 @@ export class QuotesService {
         'Este fornecedor está inativo. Não é possível registrar novas cotações para ele — cadastre ou selecione um fornecedor ativo.',
       );
     }
+    // Uma cotação por fornecedor por solicitação: é isso que torna a
+    // comparação justa entre fornecedores diferentes. Com duas cotações do
+    // mesmo fornecedor, ele "concorria com ele mesmo" e a lista deixava de
+    // representar propostas de empresas distintas.
+    const existingFromSupplier = await this.prisma.quote.findFirst({
+      where: { purchaseRequestId: pr.id, supplierId: dto.supplierId },
+      select: { id: true },
+    });
+    if (existingFromSupplier) {
+      throw new ConflictException(
+        'Este fornecedor já tem uma cotação registrada nesta solicitação. Cada fornecedor participa com uma única cotação.',
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       if (pr.status === 'SUBMITTED') {

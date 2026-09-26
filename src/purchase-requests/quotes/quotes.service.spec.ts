@@ -13,6 +13,7 @@ describe('QuotesService', () => {
       supplier: { findUnique: jest.fn() },
       quote: {
         create: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
         findMany: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),

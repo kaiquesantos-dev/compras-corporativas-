@@ -132,11 +132,21 @@ describe('Quotes (e2e)', () => {
       .expect(201);
 
     const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
     const supplierId = await createSupplier(buyer.token, CNPJ_A);
 
+    // O comprador nem enxerga um rascunho de outra pessoa (privado até ser
+    // submetido) — 403 antes de qualquer regra de estado.
     await apiRequest(app)
       .post(`/purchase-requests/${created.body.id}/quotes`)
       .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ supplierId, totalValue: 100 })
+      .expect(403);
+
+    // O admin enxerga o rascunho, mas ainda assim não pode cotar: 409.
+    await apiRequest(app)
+      .post(`/purchase-requests/${created.body.id}/quotes`)
+      .set('Authorization', `Bearer ${admin.token}`)
       .send({ supplierId, totalValue: 100 })
       .expect(409);
   });
@@ -457,6 +467,24 @@ describe('Quotes (e2e)', () => {
     const quoteBFinal = quotes.body.find((q: any) => q.id === quoteB.body.id);
     expect(quoteAFinal.status).toBe('DISCARDED');
     expect(quoteBFinal.status).toBe('SELECTED');
+  });
+
+  it('returns 409 when the same supplier tries to register a second quote on the same request', async () => {
+    const purchaseRequestId = await createSubmittedPurchaseRequest();
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const supplierId = await createSupplier(buyer.token, CNPJ_A);
+
+    await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ supplierId, totalValue: 1000 })
+      .expect(201);
+
+    await apiRequest(app)
+      .post(`/purchase-requests/${purchaseRequestId}/quotes`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ supplierId, totalValue: 900 })
+      .expect(409);
   });
 
   it('rejects registering a quote whose validity date already passed (400)', async () => {

@@ -79,7 +79,7 @@ describe('PurchaseRequests (e2e)', () => {
     const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
 
     for (const req of [requesterA, requesterB]) {
-      await apiRequest(app)
+      const created = await apiRequest(app)
         .post('/purchase-requests')
         .set('Authorization', `Bearer ${req.token}`)
         .send({
@@ -88,6 +88,11 @@ describe('PurchaseRequests (e2e)', () => {
           items: [validItem],
         })
         .expect(201);
+      // Submetidas: rascunhos de outras pessoas não aparecem pro comprador.
+      await apiRequest(app)
+        .post(`/purchase-requests/${created.body.id}/submit`)
+        .set('Authorization', `Bearer ${req.token}`)
+        .expect(200);
     }
 
     const asRequesterA = await apiRequest(app)
@@ -101,6 +106,53 @@ describe('PurchaseRequests (e2e)', () => {
       .set('Authorization', `Bearer ${buyer.token}`)
       .expect(200);
     expect(asBuyer.body.total).toBe(2);
+  });
+
+  // Rascunho é privado até ser submetido: comprador/aprovador não veem os
+  // rascunhos de outras pessoas (nem na lista, nem no detalhe); o admin vê.
+  it('keeps DRAFT requests private to their owner (and admins) until submitted', async () => {
+    const requester = await seedUserAndLogin(app, prisma, 'REQUESTER');
+    const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+    const approver = await seedUserAndLogin(app, prisma, 'APPROVER');
+    const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+
+    const draft = await apiRequest(app)
+      .post('/purchase-requests')
+      .set('Authorization', `Bearer ${requester.token}`)
+      .send({
+        title: 'Rascunho privado',
+        justification: 'Justificativa qualquer aqui.',
+        items: [validItem],
+      })
+      .expect(201);
+
+    const buyerList = await apiRequest(app)
+      .get('/purchase-requests')
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .expect(200);
+    expect(buyerList.body.total).toBe(0);
+
+    for (const outsider of [buyer, approver]) {
+      await apiRequest(app)
+        .get(`/purchase-requests/${draft.body.id}`)
+        .set('Authorization', `Bearer ${outsider.token}`)
+        .expect(403);
+    }
+
+    await apiRequest(app)
+      .get(`/purchase-requests/${draft.body.id}`)
+      .set('Authorization', `Bearer ${admin.token}`)
+      .expect(200);
+
+    // Depois de submetido, o comprador passa a enxergar normalmente.
+    await apiRequest(app)
+      .post(`/purchase-requests/${draft.body.id}/submit`)
+      .set('Authorization', `Bearer ${requester.token}`)
+      .expect(200);
+    await apiRequest(app)
+      .get(`/purchase-requests/${draft.body.id}`)
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .expect(200);
   });
 
   it("returns 403 when a REQUESTER tries to view another requester's purchase request", async () => {

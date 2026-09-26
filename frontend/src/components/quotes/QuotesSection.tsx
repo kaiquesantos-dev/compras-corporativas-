@@ -101,6 +101,7 @@ export function QuotesSection({
       {showForm && (
         <NewQuoteForm
           purchaseRequestId={purchaseRequestId}
+          quotedSupplierIds={quotes?.map((quote) => quote.supplierId) ?? []}
           onCancel={() => setShowForm(false)}
           onCreated={() => {
             setShowForm(false)
@@ -207,10 +208,12 @@ function QuoteRow({
 
 function NewQuoteForm({
   purchaseRequestId,
+  quotedSupplierIds,
   onCancel,
   onCreated,
 }: {
   purchaseRequestId: number
+  quotedSupplierIds: number[]
   onCancel: () => void
   onCreated: () => void
 }) {
@@ -258,7 +261,13 @@ function NewQuoteForm({
         value={supplierId}
         onChange={setSupplierId}
         required
-        options={suppliers?.data.map((supplier) => ({ value: String(supplier.id), label: supplier.legalName })) ?? []}
+        // Cada fornecedor participa com uma única cotação (o backend barra a
+        // segunda com 409) — quem já cotou nem aparece como opção.
+        options={
+          suppliers?.data
+            .filter((supplier) => !quotedSupplierIds.includes(supplier.id))
+            .map((supplier) => ({ value: String(supplier.id), label: supplier.legalName })) ?? []
+        }
       />
       <TextField
         label="Valor total"

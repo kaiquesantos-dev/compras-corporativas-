@@ -148,6 +148,12 @@ describe('Approvals (e2e) and full lifecycle', () => {
         items: [validItem],
       })
       .expect(201);
+    // SUBMITTED (e não DRAFT): rascunho é privado, o aprovador receberia 403
+    // antes de chegar na regra de estado que este teste quer provar.
+    await apiRequest(app)
+      .post(`/purchase-requests/${created.body.id}/submit`)
+      .set('Authorization', `Bearer ${requester.token}`)
+      .expect(200);
 
     await apiRequest(app)
       .post(`/purchase-requests/${created.body.id}/approval`)

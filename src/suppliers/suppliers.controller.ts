@@ -55,7 +55,8 @@ export class SuppliersController {
   })
   @ApiResponse({
     status: 409,
-    description: 'Já existe um fornecedor com esse CNPJ.',
+    description:
+      'Já existe um fornecedor com esse CNPJ, ou o CNPJ não está ATIVO na Receita Federal (ex: BAIXADA, INAPTA, SUSPENSA).',
   })
   create(@Body() dto: CreateSupplierDto) {
     return this.suppliersService.create(dto);

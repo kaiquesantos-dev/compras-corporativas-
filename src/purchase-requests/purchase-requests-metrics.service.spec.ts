@@ -1,5 +1,8 @@
 import { PurchaseRequestsMetricsService } from './purchase-requests-metrics.service';
 
+const ADMIN = { id: 1, email: 'a@a.com', role: 'ADMIN', isAdminDelegate: false } as any;
+const BUYER = { id: 2, email: 'b@b.com', role: 'BUYER', isAdminDelegate: false } as any;
+
 describe('PurchaseRequestsMetricsService', () => {
   let service: PurchaseRequestsMetricsService;
   let prisma: any;
@@ -25,7 +28,7 @@ describe('PurchaseRequestsMetricsService', () => {
       },
     ]);
 
-    const result = await service.getMetrics();
+    const result = await service.getMetrics(ADMIN);
 
     expect(result.countByStatus).toEqual({ DRAFT: 2, APPROVED: 1 });
     expect(result.totalApprovedValue).toBe(1500);
@@ -37,7 +40,7 @@ describe('PurchaseRequestsMetricsService', () => {
     prisma.quote.aggregate.mockResolvedValue({ _sum: { totalValue: 999.5 } });
     prisma.purchaseRequest.findMany.mockResolvedValueOnce([]);
 
-    const result = await service.getMetrics();
+    const result = await service.getMetrics(ADMIN);
 
     expect(prisma.quote.aggregate).toHaveBeenCalledWith({
       _sum: { totalValue: true },
@@ -53,7 +56,7 @@ describe('PurchaseRequestsMetricsService', () => {
     prisma.quote.aggregate.mockResolvedValue({ _sum: { totalValue: null } });
     prisma.purchaseRequest.findMany.mockResolvedValueOnce([]);
 
-    const result = await service.getMetrics();
+    const result = await service.getMetrics(ADMIN);
 
     expect(result.totalApprovedValue).toBe(0);
   });
@@ -63,7 +66,7 @@ describe('PurchaseRequestsMetricsService', () => {
     prisma.quote.aggregate.mockResolvedValue({ _sum: { totalValue: null } });
     prisma.purchaseRequest.findMany.mockResolvedValueOnce([]);
 
-    const result = await service.getMetrics();
+    const result = await service.getMetrics(ADMIN);
 
     expect(result.averageApprovalTimeHours).toBeNull();
   });
@@ -75,7 +78,7 @@ describe('PurchaseRequestsMetricsService', () => {
 
     const from = new Date('2026-08-01T00:00:00.000Z');
     const to = new Date('2026-08-31T23:59:59.999Z');
-    const result = await service.getMetrics(from, to);
+    const result = await service.getMetrics(ADMIN, from, to);
 
     const groupByWhere = prisma.purchaseRequest.groupBy.mock.calls[0][0].where;
     expect(groupByWhere.createdAt).toEqual({ gte: from, lte: to });
@@ -91,7 +94,7 @@ describe('PurchaseRequestsMetricsService', () => {
     prisma.purchaseRequest.findMany.mockResolvedValueOnce([]);
 
     const from = new Date('2026-08-01T00:00:00.000Z');
-    const result = await service.getMetrics(from);
+    const result = await service.getMetrics(ADMIN, from);
 
     const groupByWhere = prisma.purchaseRequest.groupBy.mock.calls[0][0].where;
     expect(groupByWhere.createdAt).toEqual({ gte: from });
@@ -104,10 +107,22 @@ describe('PurchaseRequestsMetricsService', () => {
     prisma.quote.aggregate.mockResolvedValue({ _sum: { totalValue: null } });
     prisma.purchaseRequest.findMany.mockResolvedValueOnce([]);
 
-    const result = await service.getMetrics();
+    const result = await service.getMetrics(ADMIN);
 
     expect(result.periodStart).toBeNull();
     expect(result.periodEnd).toBeNull();
     expect(prisma.purchaseRequest.groupBy.mock.calls[0][0].where).toEqual({});
+  });
+
+  it('does not count drafts of other people for a BUYER (drafts are private until submitted)', async () => {
+    prisma.purchaseRequest.groupBy.mockResolvedValue([]);
+    prisma.quote.aggregate.mockResolvedValue({ _sum: { totalValue: null } });
+    prisma.purchaseRequest.findMany.mockResolvedValueOnce([]);
+
+    await service.getMetrics(BUYER);
+
+    expect(prisma.purchaseRequest.groupBy.mock.calls[0][0].where).toEqual({
+      OR: [{ status: { not: 'DRAFT' } }, { requesterId: BUYER.id }],
+    });
   });
 });

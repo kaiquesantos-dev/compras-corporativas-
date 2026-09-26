@@ -189,6 +189,9 @@ IN_QUOTATION --buyer/admin cancela--> CANCELLED (terminal)
 
 - **Segregação de funções:** quem criou uma solicitação nunca aprova nem rejeita essa solicitação, mesmo que depois seja promovido a APPROVER (`403`).
 - **Cotação vencida:** não é possível registrar uma cotação com `validUntil` no passado (`400`) nem selecionar como vencedora uma cotação que venceu depois de registrada (`409`). A validade vale até o fim do dia informado.
+- **Fornecedor com CNPJ irregular:** só é possível cadastrar fornecedor cujo CNPJ esteja ATIVO na Receita Federal (`409` para BAIXADA, INAPTA, SUSPENSA etc.). Se a consulta estiver fora do ar, o cadastro manual continua possível.
+- **Rascunho é privado:** uma solicitação em DRAFT só é visível para quem a criou e para o ADMIN (inclusive o delegado). Comprador e aprovador passam a enxergá-la quando ela é submetida — na listagem, no detalhe, no histórico e nos números do painel.
+- **Uma cotação por fornecedor por solicitação** (`409` na segunda), para que a comparação seja entre empresas diferentes.
 - **Fornecedor inativo** não recebe cotação nova nem pode ter cotação selecionada como vencedora (`409`). O CNPJ não é editável depois do cadastro. Se foi cadastrado errado, desative o fornecedor e cadastre outro.
 - **Sistema nunca fica sem administrador:** ninguém altera o próprio papel nem exclui a própria conta (`403`). Acesso ADMIN delegado não cria contas ADMIN nem promove ninguém a ADMIN (`403`). Assim a delegação continua sendo temporária.
 - **REQUESTER sempre tem departamento:** é exigido na criação e na edição (`400`), e um departamento com usuários não pode ser excluído (`409`), para que nenhum solicitante fique sem conseguir criar solicitações.
@@ -231,7 +234,7 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 
 | Método | URL | Auth | Body | Respostas |
 |---|---|---|---|---|
-| POST | `/suppliers` | BUYER, ADMIN | `{ document, legalName?, tradeName?, email?, phone?, zipCode?, street?, city?, state? }` — `legalName`/endereço preenchidos automaticamente via CNPJ quando omitidos | `201` · `400` CNPJ inválido/serviço indisponível sem dados manuais · `403` · `409` CNPJ duplicado |
+| POST | `/suppliers` | BUYER, ADMIN | `{ document, legalName?, tradeName?, email?, phone?, zipCode?, street?, city?, state? }` — `legalName`/endereço preenchidos automaticamente via CNPJ quando omitidos | `201` · `400` CNPJ inválido/serviço indisponível sem dados manuais · `403` · `409` CNPJ duplicado ou CNPJ não ATIVO na Receita Federal |
 | GET | `/suppliers?page=&pageSize=&sortBy=&sortOrder=&isActive=` | - | — | `200` |
 | GET | `/suppliers/:id` | - | — | `200` · `404` |
 | PATCH | `/suppliers/:id` | BUYER, ADMIN | `{ legalName?, tradeName?, email?, phone?, zipCode?, street?, city?, state?, isActive? }` — **sem `document`**: o CNPJ é travado após o cadastro (é a identidade legal do fornecedor) | `200` · `400` se enviar `document` · `404` |
@@ -242,9 +245,9 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 | Método | URL | Auth | Body | Respostas |
 |---|---|---|---|---|
 | POST | `/purchase-requests` | REQUESTER | `{ title, justification, items: [{ description, quantity, unit, estimatedUnitPrice? }] }` | `201` · `400` sem itens · `403` |
-| GET | `/purchase-requests?page=&pageSize=&sortBy=&sortOrder=&status=` | - | — | `200` (REQUESTER vê só as próprias) |
+| GET | `/purchase-requests?page=&pageSize=&sortBy=&sortOrder=&status=` | - | — | `200` (REQUESTER vê só as próprias; BUYER/APPROVER não veem rascunhos de outras pessoas) |
 | GET | `/purchase-requests/metrics` | BUYER, APPROVER, ADMIN | — | `200` · `403` |
-| GET | `/purchase-requests/:id` | - | — | `200` · `403` recurso de terceiro · `404` |
+| GET | `/purchase-requests/:id` | - | — | `200` · `403` recurso de terceiro ou rascunho de outra pessoa · `404` |
 | PATCH | `/purchase-requests/:id` | dono da solicitação, qualquer que seja o papel atual dele | `{ title?, justification? }` | `200` · `403` · `404` · `409` fora de DRAFT |
 | POST | `/purchase-requests/:id/submit` | dono da solicitação, qualquer que seja o papel atual dele | — | `200` · `403` · `409` fora de DRAFT |
 | POST | `/purchase-requests/:id/cancel` | REQUESTER dono (DRAFT/SUBMITTED), BUYER (a partir de IN_QUOTATION), ADMIN ou admin delegado (qualquer estado cancelável) | — | `200` · `403` papel/estado incompatível · `409` estado não cancelável |
@@ -255,7 +258,7 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 
 | Método | URL | Auth | Body | Respostas |
 |---|---|---|---|---|
-| POST | `/purchase-requests/:id/quotes` | BUYER, ADMIN | `{ supplierId, totalValue, validUntil?, notes? }` (JSON) **ou** `multipart/form-data` com os mesmos campos + `file` opcional (PDF/PNG/JPEG, até 5MB) — anexa a proposta já na criação, sem precisar de uma segunda chamada | `201` · `400` dados/arquivo inválido, ou `validUntil` no passado · `404` solicitação/fornecedor · `409` fora de SUBMITTED/IN_QUOTATION, ou fornecedor inativo (`isActive: false`) · `413` arquivo maior que 5MB |
+| POST | `/purchase-requests/:id/quotes` | BUYER, ADMIN | `{ supplierId, totalValue, validUntil?, notes? }` (JSON) **ou** `multipart/form-data` com os mesmos campos + `file` opcional (PDF/PNG/JPEG, até 5MB) — anexa a proposta já na criação, sem precisar de uma segunda chamada | `201` · `400` dados/arquivo inválido, ou `validUntil` no passado · `404` solicitação/fornecedor · `409` fora de SUBMITTED/IN_QUOTATION, fornecedor inativo (`isActive: false`), ou fornecedor que já cotou nesta solicitação · `413` arquivo maior que 5MB |
 | GET | `/purchase-requests/:id/quotes` | - | — | `200` |
 | POST | `/purchase-requests/:id/quotes/:quoteId/proposal` | BUYER, ADMIN | `multipart/form-data`, campo `file` (PDF/PNG/JPEG, até 5MB) | `201` · `400` arquivo ausente/tipo ou conteúdo não permitido · `409` fora de SUBMITTED/IN_QUOTATION · `413` arquivo maior que 5MB |
 | GET | `/purchase-requests/:id/quotes/:quoteId/proposal` | - | — | `200` binário · `404` sem arquivo |

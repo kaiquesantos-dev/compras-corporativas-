@@ -100,7 +100,7 @@ export class QuotesController {
   @ApiResponse({
     status: 409,
     description:
-      'Solicitação não está em um estado que aceite novas cotações, ou o fornecedor está inativo (isActive: false).',
+      'Solicitação não está em um estado que aceite novas cotações, o fornecedor está inativo (isActive: false), ou esse fornecedor já tem uma cotação nesta solicitação.',
   })
   @ApiResponse({ status: 413, description: 'Arquivo maior que 5MB.' })
   create(
