@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsInt,
@@ -9,6 +10,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { NormalizeEmail } from '../../common/transforms/normalize-email.transform';
 import { Role } from '../../generated/prisma/client';
 
 // Igual ao CreateUserDto, mas todos os campos são opcionais — o cliente só
@@ -23,6 +25,7 @@ export class UpdateUserDto {
 
   @ApiPropertyOptional({ example: 'maria.silva@empresa.com' })
   @IsOptional()
+  @NormalizeEmail()
   @IsEmail()
   @MaxLength(255)
   email?: string;
@@ -54,4 +57,13 @@ export class UpdateUserDto {
   @IsInt()
   @Min(1)
   departmentId?: number | null;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'Soft delete: false desativa o usuário (não loga mais e perde a sessão na hora, mas continua como autor do histórico); true reativa. Ninguém desativa a própria conta.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

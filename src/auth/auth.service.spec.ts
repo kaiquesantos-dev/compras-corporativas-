@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { AuthService } from './auth.service';
 
@@ -20,6 +20,7 @@ describe('AuthService', () => {
       email: 'a@a.com',
       password: hashed,
       role: 'ADMIN',
+      isActive: true,
     });
 
     const result = await service.login('a@a.com', 'correct-password');
@@ -46,6 +47,39 @@ describe('AuthService', () => {
       email: 'a@a.com',
       password: hashed,
       role: 'ADMIN',
+    });
+    await expect(service.login('a@a.com', 'wrong')).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
+  // Soft delete: senha certa, mas conta desativada → 403 com o motivo, e
+  // nenhum token é emitido.
+  it('throws ForbiddenException for a deactivated account even with the right password', async () => {
+    const hashed = await bcrypt.hash('correct-password', 10);
+    prisma.user.findUnique.mockResolvedValue({
+      id: 1,
+      email: 'a@a.com',
+      password: hashed,
+      role: 'REQUESTER',
+      isActive: false,
+    });
+    await expect(
+      service.login('a@a.com', 'correct-password'),
+    ).rejects.toThrow(ForbiddenException);
+    expect(jwtService.signAsync).not.toHaveBeenCalled();
+  });
+
+  // Conta desativada com senha ERRADA continua sendo "credenciais
+  // inválidas" — não revela a quem chuta senhas que a conta existe.
+  it('still answers 401 (not 403) for a deactivated account with the wrong password', async () => {
+    const hashed = await bcrypt.hash('correct-password', 10);
+    prisma.user.findUnique.mockResolvedValue({
+      id: 1,
+      email: 'a@a.com',
+      password: hashed,
+      role: 'REQUESTER',
+      isActive: false,
     });
     await expect(service.login('a@a.com', 'wrong')).rejects.toThrow(
       UnauthorizedException,

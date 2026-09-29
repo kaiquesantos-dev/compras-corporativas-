@@ -86,7 +86,7 @@ export class QuotesController {
   @ApiOperation({
     summary: 'Registrar cotação',
     description:
-      '**Papéis permitidos:** BUYER, ADMIN\n\nRegistra a cotação de um fornecedor para a solicitação. Move SUBMITTED → IN_QUOTATION automaticamente na primeira cotação registrada. Aceita anexar a proposta (PDF, PNG ou JPEG, até 5MB) já nesta mesma chamada, via multipart/form-data.',
+      '**Papéis permitidos:** Comprador (BUYER), Administrador (ADMIN)\n\nRegistra a cotação de um fornecedor para a solicitação. Move SUBMITTED → IN_QUOTATION automaticamente na primeira cotação registrada. Aceita anexar a proposta (PDF, PNG ou JPEG, até 5MB) já nesta mesma chamada, via multipart/form-data.',
   })
   @ApiResponse({ status: 201, description: 'Cotação registrada.' })
   @ApiResponse({
@@ -122,7 +122,7 @@ export class QuotesController {
   @Get()
   @ApiOperation({
     summary: 'Listar cotações da solicitação',
-    description: '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN',
+    description: '**Papéis permitidos:** Solicitante (REQUESTER), Comprador (BUYER), Aprovador (APPROVER), Administrador (ADMIN)',
   })
   findAll(
     @Param('purchaseRequestId', ParseIntPipe) purchaseRequestId: number,
@@ -155,7 +155,7 @@ export class QuotesController {
   @ApiOperation({
     summary: 'Anexar proposta da cotação (upload)',
     description:
-      '**Papéis permitidos:** BUYER, ADMIN\n\nAceita PDF, PNG ou JPEG, até 5MB. O arquivo é armazenado diretamente no banco.',
+      '**Papéis permitidos:** Comprador (BUYER), Administrador (ADMIN)\n\nAceita PDF, PNG ou JPEG, até 5MB. O arquivo é armazenado diretamente no banco.',
   })
   @ApiResponse({ status: 201, description: 'Proposta anexada.' })
   @ApiResponse({
@@ -191,7 +191,7 @@ export class QuotesController {
   @Get(':quoteId/proposal')
   @ApiOperation({
     summary: 'Baixar proposta da cotação',
-    description: '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN',
+    description: '**Papéis permitidos:** Solicitante (REQUESTER), Comprador (BUYER), Aprovador (APPROVER), Administrador (ADMIN)',
   })
   @ApiResponse({
     status: 404,
@@ -225,7 +225,7 @@ export class QuotesController {
   @ApiOperation({
     summary: 'Selecionar cotação vencedora',
     description:
-      '**Papéis permitidos:** BUYER, ADMIN\n\nMarca a cotação como SELECTED, descarta automaticamente as demais cotações da mesma solicitação, e move a solicitação para PENDING_APPROVAL.',
+      '**Papéis permitidos:** Comprador (BUYER), Administrador (ADMIN)\n\nMarca a cotação como SELECTED, descarta automaticamente as demais cotações da mesma solicitação, e move a solicitação para PENDING_APPROVAL.',
   })
   @ApiResponse({
     status: 409,

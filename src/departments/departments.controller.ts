@@ -42,7 +42,7 @@ export class DepartmentsController {
   @Roles('ADMIN')
   @ApiOperation({
     summary: 'Criar departamento',
-    description: '**Papéis permitidos:** ADMIN',
+    description: '**Papéis permitidos:** Administrador (ADMIN)',
   })
   @ApiResponse({ status: 201, description: 'Departamento criado.' })
   @ApiResponse({
@@ -56,7 +56,7 @@ export class DepartmentsController {
   @Get()
   @ApiOperation({
     summary: 'Listar departamentos',
-    description: '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN',
+    description: '**Papéis permitidos:** Solicitante (REQUESTER), Comprador (BUYER), Aprovador (APPROVER), Administrador (ADMIN)',
   })
   findAll(@Query() query: PaginationQueryDto) {
     return this.departmentsService.findAll(query);
@@ -65,7 +65,7 @@ export class DepartmentsController {
   @Get(':id')
   @ApiOperation({
     summary: 'Buscar departamento por ID',
-    description: '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN',
+    description: '**Papéis permitidos:** Solicitante (REQUESTER), Comprador (BUYER), Aprovador (APPROVER), Administrador (ADMIN)',
   })
   @ApiResponse({ status: 404, description: 'Departamento não encontrado.' })
   findOne(@Param('id', ParseIntPipe) id: number) {
@@ -77,7 +77,7 @@ export class DepartmentsController {
   @Roles('ADMIN')
   @ApiOperation({
     summary: 'Atualizar departamento',
-    description: '**Papéis permitidos:** ADMIN',
+    description: '**Papéis permitidos:** Administrador (ADMIN)',
   })
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -91,7 +91,7 @@ export class DepartmentsController {
   @Roles('ADMIN')
   @ApiOperation({
     summary: 'Remover departamento',
-    description: '**Papéis permitidos:** ADMIN',
+    description: '**Papéis permitidos:** Administrador (ADMIN)',
   })
   @ApiResponse({
     status: 409,

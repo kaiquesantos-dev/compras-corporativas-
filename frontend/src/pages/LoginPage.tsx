@@ -49,6 +49,10 @@ export function LoginPage() {
       if (isAxiosError(err)) {
         if (err.response?.status === 401) {
           message = 'E-mail ou senha incorretos.'
+        } else if (err.response?.status === 403) {
+          // Senha certa, conta desativada pelo admin (soft delete): mostra o
+          // motivo real, senão a pessoa acharia que errou a senha.
+          message = 'Esta conta está desativada. Procure o administrador do sistema.'
         } else if (err.response?.status === 429) {
           message = 'Muitas tentativas seguidas. Aguarde um minuto e tente novamente.'
         } else if (err.response?.status === 400) {

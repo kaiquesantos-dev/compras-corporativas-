@@ -44,12 +44,12 @@ export class UsersController {
   @ApiOperation({
     summary: 'Criar usuário',
     description:
-      '**Papéis permitidos:** ADMIN\n\nCria um novo usuário no sistema. Criar uma conta com papel ADMIN exige um ADMIN de verdade — acesso delegado (isAdminDelegate) não é suficiente, senão a delegação temporária viraria acesso permanente. Um usuário REQUESTER precisa de departamento.',
+      '**Papéis permitidos:** Administrador (ADMIN)\n\nCria um novo usuário no sistema. Criar uma conta com papel ADMIN (administrador) exige um administrador de verdade — acesso delegado (isAdminDelegate) não é suficiente, senão a delegação temporária viraria acesso permanente. Um usuário REQUESTER precisa de departamento.',
   })
   @ApiResponse({ status: 201, description: 'Usuário criado com sucesso.' })
   @ApiResponse({
     status: 403,
-    description: 'Tentativa de criar um ADMIN usando apenas acesso delegado.',
+    description: 'Tentativa de criar um administrador usando apenas acesso delegado.',
   })
   @ApiResponse({
     status: 400,
@@ -74,7 +74,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Listar usuários',
     description:
-      '**Papéis permitidos:** ADMIN\n\nLista usuários com paginação e ordenação. Nunca retorna a senha.',
+      '**Papéis permitidos:** Administrador (ADMIN)\n\nLista usuários com paginação e ordenação. Nunca retorna a senha.',
   })
   findAll(@Query() query: PaginationQueryDto) {
     return this.usersService.findAll(query);
@@ -83,7 +83,7 @@ export class UsersController {
   @Get(':id')
   @ApiOperation({
     summary: 'Buscar usuário por ID',
-    description: '**Papéis permitidos:** ADMIN',
+    description: '**Papéis permitidos:** Administrador (ADMIN)',
   })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
   findOne(@Param('id', ParseIntPipe) id: number) {
@@ -94,11 +94,12 @@ export class UsersController {
   @ApiOperation({
     summary: 'Atualizar usuário',
     description:
-      '**Papéis permitidos:** ADMIN\n\nSe o alvo for um ADMIN, só um ADMIN de verdade pode editá-lo — acesso obtido só por delegação (isAdminDelegate) não é suficiente.',
+      '**Papéis permitidos:** Administrador (ADMIN)\n\nSe o alvo for um administrador, só um administrador de verdade pode editá-lo — acesso obtido só por delegação (isAdminDelegate) não é suficiente.\n\n**Soft delete:** envie `"isActive": false` para desativar o usuário (quem saiu da empresa). Ele não consegue mais logar e perde a sessão aberta na hora, mas continua como autor dos pedidos, cotações e aprovações. `"isActive": true` reativa.',
   })
   @ApiResponse({
     status: 403,
-    description: 'Alvo é ADMIN e quem chama só tem acesso delegado.',
+    description:
+      'Alvo é um administrador e quem chama só tem acesso delegado; ou tentativa de alterar o próprio papel ou de desativar a própria conta.',
   })
   @ApiResponse({
     status: 404,
@@ -114,9 +115,9 @@ export class UsersController {
 
   @Patch(':id/admin-delegate')
   @ApiOperation({
-    summary: 'Conceder ou revogar delegação de acesso ADMIN',
+    summary: 'Conceder ou revogar delegação de acesso de administrador',
     description:
-      '**Papéis permitidos:** ADMIN (só um ADMIN de verdade — um usuário com acesso apenas delegado não pode criar novas delegações)\n\nConcede acesso ADMIN temporário a um usuário APPROVER (ex: cobrir férias do admin) ou revoga. Não altera o "role" real do usuário — é um toggle manual, sem data de início/fim.',
+      '**Papéis permitidos:** Administrador (ADMIN) — só um administrador de verdade; um usuário com acesso apenas delegado não pode criar novas delegações\n\nConcede acesso de administrador temporário a um Aprovador (APPROVER) (ex: cobrir férias do administrador) ou revoga. Não altera o "role" real do usuário — é um toggle manual, sem data de início/fim.',
   })
   @ApiResponse({ status: 200, description: 'Delegação atualizada.' })
   @ApiResponse({
@@ -125,7 +126,7 @@ export class UsersController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Quem chama só tem acesso ADMIN delegado, não real.',
+    description: 'Quem chama só tem acesso de administrador delegado, não real.',
   })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
   delegateAdmin(
@@ -140,17 +141,17 @@ export class UsersController {
   @ApiOperation({
     summary: 'Remover usuário',
     description:
-      '**Papéis permitidos:** ADMIN\n\nSe o alvo for um ADMIN, só um ADMIN de verdade pode removê-lo — acesso obtido só por delegação (isAdminDelegate) não é suficiente.',
+      '**Papéis permitidos:** Administrador (ADMIN)\n\nSe o alvo for um administrador, só um administrador de verdade pode removê-lo — acesso obtido só por delegação (isAdminDelegate) não é suficiente.',
   })
   @ApiResponse({
     status: 403,
-    description: 'Alvo é ADMIN e quem chama só tem acesso delegado.',
+    description: 'Alvo é um administrador e quem chama só tem acesso delegado.',
   })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
   @ApiResponse({
     status: 409,
     description:
-      'Usuário possui registros vinculados (ex: solicitações de compra criadas por ele).',
+      'Usuário possui registros vinculados (ex: solicitações de compra criadas por ele). Nesse caso, desative-o (PATCH com isActive: false) em vez de excluir.',
   })
   remove(
     @Param('id', ParseIntPipe) id: number,

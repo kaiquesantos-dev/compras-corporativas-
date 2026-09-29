@@ -50,12 +50,28 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true, role: true, isAdminDelegate: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isAdminDelegate: true,
+        isActive: true,
+      },
     });
     if (!user) {
       throw new UnauthorizedException('Usuário não encontrado ou removido.');
     }
+    // Desativado pelo admin: a sessão cai na próxima requisição, sem esperar
+    // o token vencer — é o que torna a desativação efetiva de imediato.
+    if (!user.isActive) {
+      throw new UnauthorizedException('Esta conta está desativada.');
+    }
 
-    return user;
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isAdminDelegate: user.isAdminDelegate,
+    };
   }
 }

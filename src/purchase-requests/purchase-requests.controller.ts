@@ -49,7 +49,7 @@ export class PurchaseRequestsController {
   @ApiOperation({
     summary: 'Criar solicitação de compra',
     description:
-      '**Papéis permitidos:** REQUESTER\n\nCria uma solicitação em DRAFT com seus itens.',
+      '**Papéis permitidos:** Solicitante (REQUESTER)\n\nCria uma solicitação em DRAFT com seus itens.',
   })
   @ApiResponse({ status: 201, description: 'Solicitação criada em DRAFT.' })
   @ApiResponse({
@@ -67,7 +67,7 @@ export class PurchaseRequestsController {
   @ApiOperation({
     summary: 'Listar solicitações de compra',
     description:
-      '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN\n\n*(REQUESTER vê apenas as próprias; BUYER/APPROVER veem todas exceto rascunhos (DRAFT) de outras pessoas — rascunho é privado até ser submetido; ADMIN vê todas)*',
+      '**Papéis permitidos:** Solicitante (REQUESTER), Comprador (BUYER), Aprovador (APPROVER), Administrador (ADMIN)\n\n*(REQUESTER vê apenas as próprias; BUYER/APPROVER veem todas exceto rascunhos (DRAFT) de outras pessoas — rascunho é privado até ser submetido; ADMIN vê todas)*',
   })
   findAll(
     @Query() query: PurchaseRequestQueryDto,
@@ -86,7 +86,7 @@ export class PurchaseRequestsController {
   @ApiOperation({
     summary: 'Indicadores de compras',
     description:
-      '**Papéis permitidos:** BUYER, APPROVER, ADMIN\n\nContagem de solicitações por status, valor total aprovado e tempo médio de decisão, em horas (do envio até a aprovação ou rejeição). Aceita "from"/"to" para restringir o período às solicitações criadas nesse intervalo.',
+      '**Papéis permitidos:** Comprador (BUYER), Aprovador (APPROVER), Administrador (ADMIN)\n\nContagem de solicitações por status, valor total aprovado (aprovadas + concluídas) e tempo médio até a decisão, em horas (do envio até a aprovação ou rejeição). Aceita "from"/"to" para restringir o período às solicitações criadas nesse intervalo.',
   })
   metrics(
     @Query() query: PurchaseMetricsQueryDto,
@@ -104,7 +104,7 @@ export class PurchaseRequestsController {
   @ApiOperation({
     summary: 'Buscar solicitação por ID',
     description:
-      '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN\n\n*(REQUESTER vê apenas as próprias; um rascunho (DRAFT) só é visível para quem o criou e para o ADMIN)*',
+      '**Papéis permitidos:** Solicitante (REQUESTER), Comprador (BUYER), Aprovador (APPROVER), Administrador (ADMIN)\n\n*(REQUESTER vê apenas as próprias; um rascunho (DRAFT) só é visível para quem o criou e para o ADMIN)*',
   })
   @ApiResponse({
     status: 403,
@@ -166,10 +166,10 @@ export class PurchaseRequestsController {
   @ApiOperation({
     summary: 'Cancelar solicitação',
     description:
-      '**Papéis permitidos:** REQUESTER dono (só em DRAFT/SUBMITTED), BUYER, ADMIN\n\n' +
+      '**Papéis permitidos:** Solicitante (REQUESTER) dono (só em DRAFT/SUBMITTED), Comprador (BUYER), Administrador (ADMIN)\n\n' +
       'Permitido a partir de DRAFT, SUBMITTED ou IN_QUOTATION. A partir de IN_QUOTATION ' +
       '(o comprador já está negociando com fornecedores), o REQUESTER dono deixa de poder ' +
-      'cancelar sozinho — a decisão passa a exigir um BUYER ou ADMIN, para não descartar o ' +
+      'cancelar sozinho — a decisão passa a exigir um comprador ou administrador, para não descartar o ' +
       'trabalho de cotação em andamento sem quem está conduzindo o processo ter voz nisso.',
   })
   @ApiResponse({
@@ -194,7 +194,7 @@ export class PurchaseRequestsController {
   @Roles('BUYER', 'ADMIN')
   @ApiOperation({
     summary: 'Concluir solicitação',
-    description: '**Papéis permitidos:** BUYER, ADMIN\n\nAPPROVED → COMPLETED',
+    description: '**Papéis permitidos:** Comprador (BUYER), Administrador (ADMIN)\n\nAPPROVED → COMPLETED',
   })
   @ApiResponse({
     status: 409,
@@ -211,7 +211,7 @@ export class PurchaseRequestsController {
   @ApiOperation({
     summary: 'Histórico de mudanças de status',
     description:
-      '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN\n\nLista cada transição de estado registrada para a solicitação.',
+      '**Papéis permitidos:** Solicitante (REQUESTER), Comprador (BUYER), Aprovador (APPROVER), Administrador (ADMIN)\n\nLista cada transição de estado registrada para a solicitação.',
   })
   history(
     @Param('id', ParseIntPipe) id: number,

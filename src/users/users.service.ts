@@ -27,6 +27,7 @@ export const USER_SELECT = {
   departmentId: true,
   createdAt: true,
   isAdminDelegate: true,
+  isActive: true,
 } as const;
 
 // CRUD de usuários, restrito a ADMIN (a restrição de papel está no
@@ -79,10 +80,29 @@ export class UsersService {
     // nem nós, olhando o banco, conseguimos saber qual é a senha original.
     const password = await bcrypt.hash(dto.password, 10);
 
-    return this.prisma.user.create({
-      data: { ...dto, password },
-      select: USER_SELECT,
-    });
+    try {
+      return await this.prisma.user.create({
+        data: { ...dto, password },
+        select: USER_SELECT,
+      });
+    } catch (err) {
+      throw this.duplicateEmailOr(err);
+    }
+  }
+
+  // O único campo único do usuário é o e-mail: um P2002 aqui é sempre
+  // "e-mail já cadastrado". Sem isto, caía na mensagem genérica do filtro
+  // global ("Já existe um registro com esse valor único."). O e-mail já
+  // chega em minúsculas (NormalizeEmail), então "COMPRADOR@..." também cai
+  // aqui quando "comprador@..." existe.
+  private duplicateEmailOr(err: unknown): unknown {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2002'
+    ) {
+      return new ConflictException('Este e-mail já está cadastrado.');
+    }
+    return err;
   }
 
   async findAll(query: PaginationQueryDto) {
@@ -122,7 +142,7 @@ export class UsersService {
   private assertRealAdmin(actor: AuthenticatedUser) {
     if (actor.role !== 'ADMIN') {
       throw new ForbiddenException(
-        'Esta ação só pode ser realizada por um ADMIN — acesso delegado não é suficiente.',
+        'Esta ação só pode ser realizada por um administrador — acesso delegado não é suficiente.',
       );
     }
   }
@@ -140,6 +160,13 @@ export class UsersService {
     // sendo ADMIN depois da operação.
     if (id === actor.id && dto.role && dto.role !== current.role) {
       throw new ForbiddenException('Você não pode alterar o seu próprio papel.');
+    }
+    // Mesmo motivo: desativar a própria conta trancaria o admin do lado de
+    // fora e poderia deixar o sistema sem nenhum ADMIN ativo.
+    if (id === actor.id && dto.isActive === false) {
+      throw new ForbiddenException(
+        'Você não pode desativar a sua própria conta.',
+      );
     }
     // "departmentId: null" significa desvincular — não pode cair no "??",
     // que trataria null como "não informado" e usaria o valor atual.
@@ -168,11 +195,15 @@ export class UsersService {
       data.isAdminDelegate = false;
     }
 
-    return this.prisma.user.update({
-      where: { id },
-      data,
-      select: USER_SELECT,
-    });
+    try {
+      return await this.prisma.user.update({
+        where: { id },
+        data,
+        select: USER_SELECT,
+      });
+    } catch (err) {
+      throw this.duplicateEmailOr(err);
+    }
   }
 
   // Concede ou revoga acesso ADMIN temporário a um usuário APPROVER — a
@@ -186,7 +217,7 @@ export class UsersService {
 
     if (granted && user.role !== 'APPROVER') {
       throw new BadRequestException(
-        'Só é possível delegar acesso ADMIN para um usuário APPROVER.',
+        'Só é possível delegar acesso de administrador para um Aprovador (APPROVER).',
       );
     }
 
@@ -207,7 +238,7 @@ export class UsersService {
         err.code === 'P2025'
       ) {
         throw new BadRequestException(
-          'Só é possível delegar acesso ADMIN para um usuário APPROVER.',
+          'Só é possível delegar acesso de administrador para um Aprovador (APPROVER).',
         );
       }
       throw err;
@@ -237,7 +268,7 @@ export class UsersService {
         err.code === 'P2003'
       ) {
         throw new ConflictException(
-          'Não é possível excluir este usuário: ele possui solicitações de compra, cotações, aprovações ou histórico vinculados a ele no sistema. Isso preserva a autoria dos registros mesmo após o desligamento do usuário.',
+          'Não é possível excluir este usuário: ele possui solicitações de compra, cotações, aprovações ou histórico vinculados a ele no sistema. Desative o usuário em vez de excluir: ele perde o acesso e a autoria dos registros é preservada.',
         );
       }
       throw err;

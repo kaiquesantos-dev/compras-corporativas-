@@ -56,6 +56,7 @@ export function PurchaseRequestsListPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-grey1 text-xs font-semibold text-ink-muted uppercase">
                 <tr>
+                  <th className="px-4 py-3">Nº</th>
                   <th className="px-4 py-3">Título</th>
                   <th className="px-4 py-3">Solicitante</th>
                   <th className="px-4 py-3">Status</th>
@@ -65,7 +66,10 @@ export function PurchaseRequestsListPage() {
               <tbody>
                 {data.data.map((pr) => (
                   <tr key={pr.id} className="border-t border-grey1 align-top hover:bg-surface-muted">
-                    <td className="px-4 py-3">
+                    {/* Número da solicitação: diferencia pedidos com o mesmo
+                        título e é o jeito comum de se referir a um pedido. */}
+                    <td className="px-4 py-3 whitespace-nowrap text-ink-muted tabular-nums">#{pr.id}</td>
+                    <td className="min-w-[12rem] px-4 py-3">
                       <Link to={`/purchase-requests/${pr.id}`} className="font-semibold text-ink hover:text-accent">
                         {pr.title}
                       </Link>
@@ -79,7 +83,7 @@ export function PurchaseRequestsListPage() {
                 ))}
                 {data.data.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-ink-muted">
+                    <td colSpan={5}className="px-4 py-8 text-center text-ink-muted">
                       Nenhuma solicitação encontrada.
                     </td>
                   </tr>

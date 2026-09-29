@@ -41,7 +41,7 @@ export class SuppliersController {
   @ApiOperation({
     summary: 'Cadastrar fornecedor',
     description:
-      '**Papéis permitidos:** BUYER, ADMIN\n\nCadastra um fornecedor a partir do CNPJ. Razão social e endereço são preenchidos automaticamente via consulta à Receita Federal (BrasilAPI) quando não informados manualmente; campos enviados manualmente sempre têm prioridade sobre a consulta.',
+      '**Papéis permitidos:** Comprador (BUYER), Administrador (ADMIN)\n\nCadastra um fornecedor a partir do CNPJ. Razão social e endereço são preenchidos automaticamente via consulta à Receita Federal (BrasilAPI) quando não informados manualmente; campos enviados manualmente sempre têm prioridade sobre a consulta.',
   })
   @ApiResponse({ status: 201, description: 'Fornecedor cadastrado.' })
   @ApiResponse({
@@ -65,7 +65,7 @@ export class SuppliersController {
   @Get()
   @ApiOperation({
     summary: 'Listar fornecedores',
-    description: '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN',
+    description: '**Papéis permitidos:** Solicitante (REQUESTER), Comprador (BUYER), Aprovador (APPROVER), Administrador (ADMIN)',
   })
   findAll(@Query() query: SupplierQueryDto) {
     return this.suppliersService.findAll(query);
@@ -74,7 +74,7 @@ export class SuppliersController {
   @Get(':id')
   @ApiOperation({
     summary: 'Buscar fornecedor por ID',
-    description: '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN',
+    description: '**Papéis permitidos:** Solicitante (REQUESTER), Comprador (BUYER), Aprovador (APPROVER), Administrador (ADMIN)',
   })
   @ApiResponse({ status: 404, description: 'Fornecedor não encontrado.' })
   findOne(@Param('id', ParseIntPipe) id: number) {
@@ -87,7 +87,7 @@ export class SuppliersController {
   @ApiOperation({
     summary: 'Atualizar fornecedor',
     description:
-      '**Papéis permitidos:** BUYER, ADMIN\n\nO CNPJ (`document`) não pode ser alterado depois do cadastro — é a identidade legal do fornecedor, e mudá-lo reescreveria de qual empresa são as cotações já registradas. Se o CNPJ foi cadastrado errado, desative este registro (`isActive: false`) e cadastre um fornecedor novo com o CNPJ correto.',
+      '**Papéis permitidos:** Comprador (BUYER), Administrador (ADMIN)\n\nO CNPJ (`document`) não pode ser alterado depois do cadastro — é a identidade legal do fornecedor, e mudá-lo reescreveria de qual empresa são as cotações já registradas. Se o CNPJ foi cadastrado errado, desative este registro (`isActive: false`) e cadastre um fornecedor novo com o CNPJ correto.',
   })
   @ApiResponse({
     status: 400,
@@ -105,7 +105,7 @@ export class SuppliersController {
   @Roles('ADMIN')
   @ApiOperation({
     summary: 'Remover fornecedor',
-    description: '**Papéis permitidos:** ADMIN',
+    description: '**Papéis permitidos:** Administrador (ADMIN)',
   })
   @ApiResponse({
     status: 409,

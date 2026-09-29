@@ -60,6 +60,11 @@ model User {
   // exija esse papel, além do papel real dele (APPROVER) continuar valendo
   // normalmente.
   isAdminDelegate Boolean @default(false)
+  // Soft delete do usuário: quem sai da empresa é desativado em vez de
+  // excluído. Desativado não loga e perde a sessão aberta na hora (o
+  // JwtStrategy confere este campo a cada requisição), mas continua como
+  // autor de tudo o que fez — pedidos, cotações, aprovações e histórico.
+  isActive        Boolean @default(true)
 
   purchaseRequests PurchaseRequest[]               @relation("RequesterRequests")
   registeredQuotes Quote[]                         @relation("BuyerQuotes")

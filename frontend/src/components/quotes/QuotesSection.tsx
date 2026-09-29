@@ -13,6 +13,7 @@ import type { PurchaseRequestStatus } from '../../api/types'
 import { Button } from '../ui/Button'
 import { TextField } from '../ui/TextField'
 import { Select } from '../ui/Select'
+import { useConfirm } from '../../hooks/confirm-context'
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 // validUntil é uma data pura gravada como meia-noite UTC — formatar no fuso
@@ -41,9 +42,10 @@ export function QuotesSection({
   canManage: boolean
 }) {
   const queryClient = useQueryClient()
+  const confirm = useConfirm()
   const [showForm, setShowForm] = useState(false)
 
-  const { data: quotes, isLoading } = useQuery({
+  const { data: quotes, isLoading, isError: quotesError } = useQuery({
     queryKey: ['quotes', purchaseRequestId],
     queryFn: () => fetchQuotes(purchaseRequestId),
   })
@@ -65,6 +67,23 @@ export function QuotesSection({
     onSuccess: invalidateAll,
   })
 
+  // Escolher a vencedora descarta as demais cotações e manda a solicitação
+  // para aprovação — não dá para voltar atrás pela tela, então confirma
+  // antes e diz exatamente o que vai acontecer.
+  async function handleSelect(quote: import('../../api/types').Quote) {
+    const others = (quotes?.length ?? 1) - 1
+    const ok = await confirm({
+      title: 'Selecionar cotação vencedora?',
+      message: `${quote.supplier?.legalName ?? 'Este fornecedor'} (${currencyFormatter.format(Number(quote.totalValue))}) será a cotação vencedora e a solicitação vai para aprovação.${
+        others > 0 ? ` As outras ${others === 1 ? 'cotação será descartada' : `${others} cotações serão descartadas`}.` : ''
+      } Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Selecionar vencedora',
+      cancelLabel: 'Voltar',
+      variant: 'success',
+    })
+    if (ok) selectMutation.mutate(quote.id)
+  }
+
   return (
     <div className="mb-6 rounded-[6px] bg-surface-card p-6 shadow-card">
       <div className="mb-4 flex items-center justify-between">
@@ -77,6 +96,7 @@ export function QuotesSection({
       </div>
 
       {isLoading && <p className="text-sm text-ink-muted">Carregando...</p>}
+      {quotesError && <p className="text-sm text-accent-text">Não foi possível carregar as cotações.</p>}
 
       {quotes && quotes.length === 0 && !showForm && (
         <p className="text-sm text-ink-muted">Nenhuma cotação registrada ainda.</p>
@@ -91,11 +111,17 @@ export function QuotesSection({
               quote={quote}
               canSelect={canSelect}
               canUpload={canAddQuote}
-              onSelect={() => selectMutation.mutate(quote.id)}
+              onSelect={() => handleSelect(quote)}
               selecting={selectMutation.isPending && selectMutation.variables === quote.id}
             />
           ))}
         </div>
+      )}
+
+      {selectMutation.isError && (
+        <p className="mb-4 text-sm text-accent-text">
+          {errorMessage(selectMutation.error, 'Não foi possível selecionar a cotação.')}
+        </p>
       )}
 
       {showForm && (
@@ -150,11 +176,29 @@ function QuoteRow({
     // items-start (não items-center): a razão social pode ser longa o
     // suficiente para quebrar em duas linhas, e com items-center os botões
     // à direita ficavam descentralizados em relação ao texto.
-    <div className="flex flex-wrap items-start justify-between gap-3 rounded-[6px] border border-grey1 px-4 py-3">
+    // A vencedora ganha borda e fundo verdes; as descartadas ficam apagadas —
+    // dá pra saber de relance qual proposta ganhou.
+    <div
+      className={`flex flex-wrap items-start justify-between gap-3 rounded-[6px] border px-4 py-3 ${
+        quote.status === 'SELECTED'
+          ? 'border-emerald-400 bg-emerald-50/60'
+          : quote.status === 'DISCARDED'
+            ? 'border-grey1 opacity-60'
+            : 'border-grey1'
+      }`}
+    >
       <div className="min-w-0">
-        <p className="font-semibold text-ink">{quote.supplier?.legalName ?? `Fornecedor #${quote.supplierId}`}</p>
+        <p className="flex flex-wrap items-center gap-2 font-semibold text-ink">
+          {quote.supplier?.legalName ?? `Fornecedor #${quote.supplierId}`}
+          {quote.status === 'SELECTED' && (
+            <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white uppercase">
+              Vencedora
+            </span>
+          )}
+        </p>
         <p className="text-sm text-ink-muted">
-          {currencyFormatter.format(Number(quote.totalValue))} · {statusLabels[quote.status]}
+          {currencyFormatter.format(Number(quote.totalValue))}
+          {quote.status !== 'SELECTED' && ` · ${statusLabels[quote.status]}`}
           {expired && <span className="font-semibold text-accent-text"> · Vencida</span>}
           {quote.validUntil && !expired && ` · válida até ${validityFormatter.format(new Date(quote.validUntil))}`}
         </p>

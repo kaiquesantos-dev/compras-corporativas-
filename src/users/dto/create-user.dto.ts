@@ -9,6 +9,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { NormalizeEmail } from '../../common/transforms/normalize-email.transform';
 import { Role } from '../../generated/prisma/client';
 
 // Body esperado para criar um usuário. Note que o cliente escolhe o "role"
@@ -28,13 +29,15 @@ export class CreateUserDto {
     description: 'Email único do usuário, usado para login.',
     example: 'maria.silva@empresa.com',
   })
+  @NormalizeEmail()
   @IsEmail()
   @MaxLength(255)
   email: string;
 
   @ApiProperty({
     description: 'Senha inicial (mínimo 6 caracteres).',
-    example: 'senha123',
+    // Fictícia de propósito: "senha123" é a senha real dos usuários do seed.
+    example: 'SuaSenha@2026',
   })
   @IsString()
   @MinLength(6)

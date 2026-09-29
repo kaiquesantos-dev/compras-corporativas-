@@ -134,6 +134,46 @@ describe('Users (e2e)', () => {
       .expect(409);
   });
 
+  // E-mail não diferencia maiúsculas: antes, "ADMIN@Teste.com" passava como
+  // um usuário NOVO porque o índice único do Postgres diferencia caixa.
+  it('returns 409 for the same e-mail in another letter case, and stores e-mails in lowercase', async () => {
+    const admin = await seedUserAndLogin(app, prisma, 'ADMIN', {
+      email: 'admin@teste.com',
+    });
+
+    const duplicate = await apiRequest(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${admin.token}`)
+      .send({
+        name: 'Duplicado',
+        email: '  ADMIN@Teste.COM ',
+        password: 'senha123',
+        role: 'REQUESTER',
+        departmentId: admin.departmentId,
+      })
+      .expect(409);
+    expect(duplicate.body.message).toBe('Este e-mail já está cadastrado.');
+
+    const created = await apiRequest(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${admin.token}`)
+      .send({
+        name: 'Maria',
+        email: 'Maria.Silva@Empresa.com',
+        password: 'senha123',
+        role: 'REQUESTER',
+        departmentId: admin.departmentId,
+      })
+      .expect(201);
+    expect(created.body.email).toBe('maria.silva@empresa.com');
+
+    // O login funciona do jeito que a pessoa digitar.
+    await apiRequest(app)
+      .post('/auth/login')
+      .send({ email: 'MARIA.SILVA@empresa.com', password: 'senha123' })
+      .expect(200);
+  });
+
   it('returns 404 for GET /users/:id when the user does not exist', async () => {
     const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
 
@@ -393,6 +433,74 @@ describe('Users (e2e)', () => {
         .delete(`/users/${admin.id}`)
         .set('Authorization', `Bearer ${admin.token}`)
         .expect(403);
+    });
+
+    it('blocks an admin from deactivating their own account (403)', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      await apiRequest(app)
+        .patch(`/users/${admin.id}`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ isActive: false })
+        .expect(403);
+    });
+
+    // Soft delete de usuário: quem sai da empresa é desativado em vez de
+    // excluído — perde o acesso na hora, mas continua como autor do histórico.
+    it('deactivates: login is refused (403), the open session drops (401), history is kept; reactivating restores access', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+
+      // Sessão do comprador funcionando antes da desativação.
+      await apiRequest(app)
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${buyer.token}`)
+        .expect(200);
+
+      const deactivated = await apiRequest(app)
+        .patch(`/users/${buyer.id}`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ isActive: false })
+        .expect(200);
+      expect(deactivated.body.isActive).toBe(false);
+
+      // O token ainda não venceu, mas a sessão cai na próxima requisição.
+      await apiRequest(app)
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${buyer.token}`)
+        .expect(401);
+
+      // Senha certa: recusa com o motivo (403), sem emitir token.
+      const refused = await apiRequest(app)
+        .post('/auth/login')
+        .send({ email: buyer.email, password: 'senha123' })
+        .expect(403);
+      expect(refused.body.message).toContain('desativada');
+      expect(refused.body.access_token).toBeUndefined();
+
+      // O registro continua no banco (não foi excluído).
+      const stored = await prisma.user.findUnique({ where: { id: buyer.id } });
+      expect(stored).not.toBeNull();
+
+      // Reativar devolve o acesso.
+      await apiRequest(app)
+        .patch(`/users/${buyer.id}`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ isActive: true })
+        .expect(200);
+      await apiRequest(app)
+        .post('/auth/login')
+        .send({ email: buyer.email, password: 'senha123' })
+        .expect(200);
+    });
+
+    it('rejects a non-boolean isActive with 400', async () => {
+      const admin = await seedUserAndLogin(app, prisma, 'ADMIN');
+      const buyer = await seedUserAndLogin(app, prisma, 'BUYER');
+      await apiRequest(app)
+        .patch(`/users/${buyer.id}`)
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ isActive: 'nao' })
+        .expect(400);
     });
 
     it('rejects creating a REQUESTER without a department (400)', async () => {

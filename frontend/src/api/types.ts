@@ -33,6 +33,8 @@ export interface User {
   // Delegação temporária de acesso ADMIN (ex: cobrir férias do admin) —
   // só faz sentido quando role === 'APPROVER'.
   isAdminDelegate: boolean
+  // Soft delete: um usuário desativado não loga, mas continua no histórico.
+  isActive: boolean
 }
 
 export interface Department {
@@ -47,6 +49,8 @@ export interface Supplier {
   tradeName: string | null
   email: string | null
   phone: string | null
+  zipCode: string | null
+  street: string | null
   city: string | null
   state: string | null
   isActive: boolean

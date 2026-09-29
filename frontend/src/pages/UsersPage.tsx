@@ -71,9 +71,9 @@ export function UsersPage() {
   // confirmação antes — mesmo padrão usado em "Remover".
   async function handleToggleDelegate(user: { id: number; name: string }, granted: boolean) {
     const ok = await confirm({
-      title: granted ? 'Delegar acesso ADMIN?' : 'Revogar acesso ADMIN?',
+      title: granted ? 'Delegar acesso de administrador?' : 'Revogar acesso de administrador?',
       message: granted
-        ? `"${user.name}" passará a ter acesso total de administrador, além do papel de aprovador. Use para cobrir a ausência do admin (ex: férias).`
+        ? `"${user.name}" passará a ter acesso total de administrador, além do papel de aprovador. Use para cobrir a ausência do administrador (ex: férias).`
         : `"${user.name}" perderá o acesso de administrador delegado imediatamente, voltando a ter só as permissões de aprovador.`,
       confirmLabel: granted ? 'Delegar' : 'Revogar',
       variant: granted ? 'success' : 'danger',
@@ -111,22 +111,39 @@ export function UsersPage() {
                 <tr>
                   <th className="px-4 py-3">Nome</th>
                   <th className="px-4 py-3">E-mail</th>
-                  <th className="px-4 py-3">Papel</th>
+                  <th className="px-4 py-3">Papel · Departamento</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
                 {data.data.map((user) => (
-                  <tr key={user.id} className="border-t border-grey1 align-top">
-                    <td className="px-4 py-3 text-ink">{user.name}</td>
+                  <tr
+                    key={user.id}
+                    className={`border-t border-grey1 align-top ${user.isActive ? '' : 'bg-surface-muted/60'}`}
+                  >
+                    <td className={`px-4 py-3 ${user.isActive ? 'text-ink' : 'text-ink-muted'}`}>
+                      {user.name}
+                      {/* Soft delete: desativado continua na lista (e no
+                          histórico), só sinalizado. */}
+                      {!user.isActive && (
+                        <span className="ml-2 inline-block rounded-full bg-grey2 px-2 py-0.5 text-[10px] font-semibold text-ink uppercase">
+                          Inativo
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-ink-muted">{user.email}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-ink-muted">
                       {roleLabels[user.role]}
                       {user.isAdminDelegate && (
                         <span className="ml-2 inline-block rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-on-accent uppercase">
-                          Admin delegado
+                          Administrador delegado
                         </span>
                       )}
+                      {/* Departamento como segunda linha, não como coluna: uma
+                          coluna a mais empurrava as ações para fora da tela. */}
+                      <p className="text-xs text-ink-muted/80">
+                        {departments?.data.find((dept) => dept.id === user.departmentId)?.name ?? 'Sem departamento'}
+                      </p>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       {/* Delegação de ADMIN só faz sentido pra um APPROVER
@@ -138,7 +155,7 @@ export function UsersPage() {
                           disabled={delegateMutation.isPending}
                           className="mr-4 text-xs font-semibold text-ink-muted uppercase hover:text-accent-text"
                         >
-                          {user.isAdminDelegate ? 'Revogar admin' : 'Delegar admin'}
+                          {user.isAdminDelegate ? 'Revogar administrador' : 'Delegar administrador'}
                         </button>
                       )}
                       <button
@@ -279,7 +296,10 @@ function NewUserModal({
             { value: '', label: 'Sem departamento' },
             ...departments.map((dept) => ({ value: String(dept.id), label: dept.name })),
           ]}
-          error={missingDepartment ? REQUESTER_NEEDS_DEPARTMENT : undefined}
+          // No cadastro novo é orientação (cinza), não erro: o formulário
+          // acabou de abrir e a pessoa ainda nem escolheu nada. O botão
+          // continua desabilitado enquanto faltar o departamento.
+          hint={missingDepartment ? 'Obrigatório para solicitantes.' : undefined}
         />
 
         {error ? <p className="text-sm text-accent-text">{errorMessage(error, 'Não foi possível criar.')}</p> : null}
@@ -313,12 +333,16 @@ function EditUserModal({
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<Role>(user.role)
   const [departmentId, setDepartmentId] = useState<string>(user.departmentId ? String(user.departmentId) : '')
+  const [isActive, setIsActive] = useState(String(user.isActive))
   const missingDepartment = role === 'REQUESTER' && !departmentId
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (missingDepartment) return
     onSubmit({
+      // Ninguém desativa a própria conta (o backend barra com 403) — não
+      // manda o campo quando é você mesmo.
+      isActive: isSelf ? undefined : isActive === 'true',
       name,
       email,
       password: password || undefined,
@@ -379,6 +403,22 @@ function EditUserModal({
             ...departments.map((dept) => ({ value: String(dept.id), label: dept.name })),
           ]}
           error={missingDepartment ? REQUESTER_NEEDS_DEPARTMENT : undefined}
+        />
+
+        <Select
+          label="Status"
+          value={isActive}
+          onChange={setIsActive}
+          options={[
+            { value: 'true', label: 'Ativo' },
+            { value: 'false', label: 'Inativo' },
+          ]}
+          disabled={isSelf}
+          hint={
+            isSelf
+              ? 'Você não pode desativar a sua própria conta.'
+              : 'Inativo não consegue entrar e perde a sessão na hora, mas continua no histórico.'
+          }
         />
 
         {error ? <p className="text-sm text-accent-text">{errorMessage(error, 'Não foi possível salvar.')}</p> : null}

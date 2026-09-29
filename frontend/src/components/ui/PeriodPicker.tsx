@@ -99,8 +99,16 @@ export function PeriodPicker({ value, onChange }: { value: DateRange; onChange: 
         setOpen(false)
       }
     }
+    // Esc fecha o painel, igual ao Select e às janelas.
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [open])
 
   function applyPreset(preset: PresetId) {
@@ -117,6 +125,8 @@ export function PeriodPicker({ value, onChange }: { value: DateRange; onChange: 
     <div ref={containerRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-label={`Período: ${currentLabel(value)}`}
         className="flex items-center gap-2 rounded-full bg-surface-card px-4 py-1.5 text-xs font-semibold text-ink uppercase shadow-card hover:opacity-80"
       >
         <span aria-hidden>📅</span>

@@ -51,6 +51,10 @@ export function Select({
     }
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
+        // preventDefault: marca o Esc como "já usado" para fechar só a
+        // lista — sem isso, um Select aberto dentro de um Modal fechava o
+        // Modal inteiro junto (ver Modal.tsx).
+        e.preventDefault()
         setOpen(false)
         triggerRef.current?.focus()
       }
@@ -64,12 +68,14 @@ export function Select({
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleKeyDown)
+    // Fase de captura: roda antes do listener de Esc do Modal (que é de
+    // bolha), para o preventDefault acima chegar a tempo.
+    document.addEventListener('keydown', handleKeyDown, true)
     containerRef.current?.addEventListener('focusout', handleFocusOut)
     const container = containerRef.current
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('keydown', handleKeyDown, true)
       container?.removeEventListener('focusout', handleFocusOut)
     }
   }, [open])

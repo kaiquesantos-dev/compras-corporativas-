@@ -98,7 +98,7 @@ export function SuppliersPage() {
                   // verticalmente numa linha mais alta e o layout desalinha.
                   <tr key={supplier.id} className="border-t border-grey1 align-top">
                     <td className="px-4 py-3 text-ink">{supplier.legalName}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-ink-muted">{supplier.document}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-ink-muted">{formatCnpj(supplier.document)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-ink-muted">
                       {supplier.city ? `${supplier.city}/${supplier.state}` : '—'}
                     </td>
@@ -256,6 +256,12 @@ function NewSupplierModal({
   )
 }
 
+// CEP no formato 00000-000 (a API guarda só os 8 dígitos).
+function formatZipCode(value: string): string {
+  const digits = onlyDigits(value).slice(0, 8)
+  return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits
+}
+
 function EditSupplierModal({
   supplier,
   onClose,
@@ -273,6 +279,11 @@ function EditSupplierModal({
   const [email, setEmail] = useState(supplier.email ?? '')
   const [phone, setPhone] = useState(supplier.phone ? formatPhone(supplier.phone) : '')
   const [isActive, setIsActive] = useState(String(supplier.isActive))
+  // Endereço também é editável (a API sempre aceitou) — só o CNPJ é travado.
+  const [zipCode, setZipCode] = useState(formatZipCode(supplier.zipCode ?? ''))
+  const [street, setStreet] = useState(supplier.street ?? '')
+  const [city, setCity] = useState(supplier.city ?? '')
+  const [state, setState] = useState(supplier.state ?? '')
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -280,6 +291,10 @@ function EditSupplierModal({
       legalName,
       email: email || undefined,
       phone: phone || undefined,
+      zipCode: onlyDigits(zipCode) || undefined,
+      street: street || undefined,
+      city: city || undefined,
+      state: state || undefined,
       isActive: isActive === 'true',
     })
   }
@@ -320,6 +335,26 @@ function EditSupplierModal({
           inputMode="numeric"
           maxLength={15}
         />
+        <div className="grid grid-cols-[1fr_2fr] gap-3">
+          <TextField
+            label="CEP"
+            value={zipCode}
+            onChange={(e) => setZipCode(formatZipCode(e.target.value))}
+            inputMode="numeric"
+            maxLength={9}
+          />
+          <TextField label="Endereço" value={street} onChange={(e) => setStreet(e.target.value)} maxLength={200} />
+        </div>
+        <div className="grid grid-cols-[2fr_1fr] gap-3">
+          <TextField label="Cidade" value={city} onChange={(e) => setCity(e.target.value)} maxLength={100} />
+          <TextField
+            label="UF"
+            value={state}
+            onChange={(e) => setState(e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2))}
+            minLength={2}
+            maxLength={2}
+          />
+        </div>
         <Select
           label="Status"
           value={isActive}

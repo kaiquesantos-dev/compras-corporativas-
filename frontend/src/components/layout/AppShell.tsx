@@ -139,7 +139,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {user ? roleLabels[user.role] : ''}
             {user?.isAdminDelegate && (
               <span className="ml-1 rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-semibold text-on-accent uppercase">
-                Admin delegado
+                Administrador delegado
               </span>
             )}
           </p>

@@ -1,20 +1,24 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { NormalizeEmail } from '../../common/transforms/normalize-email.transform';
 
 // DTO = "Data Transfer Object": define o formato esperado do body da
 // requisição de login. O ValidationPipe global usa os decorators abaixo
 // (@IsEmail, @MinLength etc.) para validar automaticamente antes mesmo de
 // chegar no controller — se algo estiver errado, responde 400 sozinho.
 export class LoginDto {
+  // Exemplos fictícios de propósito: a documentação é pública, então nunca
+  // mostra credenciais que funcionam de verdade (as do seed ficam no README).
   @ApiProperty({
     description: 'Email cadastrado do usuário.',
-    example: 'admin@compras.com',
+    example: 'usuario@empresa.com',
   })
+  @NormalizeEmail()
   @IsEmail({}, { message: 'Informe um email válido.' })
   @MaxLength(255)
   email: string;
 
-  @ApiProperty({ description: 'Senha do usuário.', example: 'senha123' })
+  @ApiProperty({ description: 'Senha do usuário.', example: 'SuaSenha@2026' })
   @IsString()
   @MinLength(6, { message: 'A senha deve ter pelo menos 6 caracteres.' })
   // bcrypt ignora silenciosamente qualquer byte além do 72º — sem este

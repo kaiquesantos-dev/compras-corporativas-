@@ -14,10 +14,10 @@ export function configureSwagger(app: INestApplication): void {
   const descriptionDev = `API para gestão de compras corporativas, cobrindo o fluxo completo solicitação → cotação → aprovação.
 
 ## Papéis
-- **REQUESTER**: cria e submete solicitações de compra próprias.
-- **BUYER**: cadastra fornecedores, registra cotações, anexa propostas e seleciona a cotação vencedora.
-- **APPROVER**: aprova ou rejeita solicitações pendentes.
-- **ADMIN**: gestão administrativa completa (usuários, departamentos) e acesso irrestrito.
+- **Solicitante** (\`REQUESTER\`): cria e submete solicitações de compra próprias.
+- **Comprador** (\`BUYER\`): cadastra fornecedores, registra cotações, anexa propostas e seleciona a cotação vencedora.
+- **Aprovador** (\`APPROVER\`): aprova ou rejeita solicitações pendentes.
+- **Administrador** (\`ADMIN\`): gestão administrativa completa (usuários, departamentos) e acesso irrestrito.
 
 ## Fluxo de estados
 DRAFT → SUBMITTED → IN_QUOTATION → PENDING_APPROVAL → APPROVED → COMPLETED, com REJECTED e CANCELLED como estados terminais (nenhuma ação futura é permitida a partir deles).`;

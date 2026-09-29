@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { fetchPurchaseMetrics, fetchPurchaseRequests } from '../api/purchase-requests'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { Button } from '../components/ui/Button'
 import { PeriodPicker, type DateRange } from '../components/ui/PeriodPicker'
 import { statusLabels } from '../lib/status-labels'
 import { useAuthStore } from '../store/auth-store'
@@ -18,7 +19,12 @@ function last30Days(): DateRange {
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) }
 }
 
-const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+// Os dois quadros de lista do painel mostram sempre as mais recentes, sem
+// seguir o filtro de período — o subtítulo de cada um diz isso na tela.
+const RECENT_LIMIT = 8
+const APPROVED_LIMIT = 6
+
+const currencyFormatter =new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' })
 const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 
@@ -46,11 +52,28 @@ const STATUS_BAR_COLOR: Record<PurchaseRequestStatus, string> = {
   CANCELLED: 'bg-grey2',
 }
 
+// O que cada status significa, mostrado ao passar o mouse na distribuição —
+// principalmente para separar "Cancelada" (desistiram antes da decisão) de
+// "Rejeitada" (o aprovador negou), que costumam ser confundidas.
+const STATUS_HINTS: Record<PurchaseRequestStatus, string> = {
+  DRAFT: 'Criada pelo solicitante, ainda não enviada.',
+  SUBMITTED: 'Enviada pelo solicitante, aguardando um comprador assumir.',
+  IN_QUOTATION: 'O comprador está reunindo propostas de fornecedores.',
+  PENDING_APPROVAL: 'Cotação vencedora escolhida, aguardando o aprovador.',
+  APPROVED: 'Aprovada. Aguardando o comprador concluir a compra.',
+  COMPLETED: 'Compra finalizada pelo comprador.',
+  REJECTED: 'O aprovador negou a compra.',
+  CANCELLED: 'A solicitação inteira foi cancelada antes da aprovação (pelo solicitante, comprador ou administrador).',
+}
+
+// Uma casa decimal no padrão brasileiro (3,4 e não 3.4).
+const decimalFormatter = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 })
+
 function formatApprovalTime(hours: number | null): string {
   if (hours === null) return '—'
-  if (hours < 1) return '< 1h'
-  if (hours < 48) return `${Math.round(hours)}h`
-  return `${(hours / 24).toFixed(1)} dias`
+  if (hours < 1) return 'menos de 1 h'
+  if (hours < 48) return `${Math.round(hours)} h`
+  return `${decimalFormatter.format(hours / 24)} dias`
 }
 
 // Data relativa curta ("hoje", "ontem", "há 5 dias") — dá uma sensação de
@@ -58,8 +81,11 @@ function formatApprovalTime(hours: number | null): string {
 // partir de uma data absoluta.
 function formatRelativeDate(iso: string): string {
   const date = new Date(iso)
-  const diffMs = Date.now() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  // Diferença em dias de CALENDÁRIO, não em blocos de 24h: antes, algo
+  // criado anteontem às 21h aparecia como "ontem" às 16h de hoje (só 43h
+  // de diferença), contradizendo a data mostrada na lista.
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const diffDays = Math.round((startOfDay(new Date()) - startOfDay(date)) / (1000 * 60 * 60 * 24))
   if (diffDays <= 0) return 'hoje'
   if (diffDays === 1) return 'ontem'
   if (diffDays < 30) return `há ${diffDays} dias`
@@ -79,7 +105,10 @@ function formatUtcDate(iso: string): string {
 // é a resposta direta para "esses números são de quando?".
 function PeriodSummary({ periodStart, periodEnd }: { periodStart: string | null; periodEnd: string | null }) {
   let text: string
-  if (periodStart && periodEnd) {
+  if (periodStart && periodEnd && periodStart.slice(0, 10) === periodEnd.slice(0, 10)) {
+    // Um dia só ("Hoje", "Ontem"): "entre 27/09 e 27/09" soava estranho.
+    text = `Considerando solicitações criadas em ${formatUtcDate(periodStart)}`
+  } else if (periodStart && periodEnd) {
     text = `Considerando solicitações criadas entre ${formatUtcDate(periodStart)} e ${formatUtcDate(periodEnd)}`
   } else if (periodStart) {
     text = `Considerando solicitações criadas a partir de ${formatUtcDate(periodStart)}`
@@ -94,10 +123,12 @@ function PeriodSummary({ periodStart, periodEnd }: { periodStart: string | null;
 function KpiCard({
   label,
   value,
+  hint,
   accent = false,
 }: {
   label: string
   value: string
+  hint?: string
   accent?: boolean
 }) {
   return (
@@ -118,6 +149,7 @@ function KpiCard({
       >
         {value}
       </p>
+      {hint && <p className="mt-1 text-xs text-ink-muted">{hint}</p>}
     </div>
   )
 }
@@ -127,19 +159,22 @@ function StatusDistribution({ countByStatus }: { countByStatus: Partial<Record<P
 
   return (
     <div className="rounded-[6px] bg-surface-card p-6 shadow-card">
-      <p className="mb-4 text-xs font-semibold tracking-wide text-ink-muted uppercase">
-        Distribuição por status
-      </p>
+      <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Distribuição por status</p>
+      <p className="mb-4 text-xs text-ink-muted">Passe o mouse sobre um status para ver o que ele significa.</p>
       {total === 0 ? (
-        <p className="text-sm text-ink-muted">Nenhuma solicitação registrada ainda.</p>
+        // "neste período", não "ainda": os indicadores seguem o filtro de
+        // período, e zero aqui quase sempre é o período, não o sistema vazio.
+        <p className="text-sm text-ink-muted">Nenhuma solicitação criada neste período.</p>
       ) : (
         <div className="flex flex-col gap-3">
           {STATUS_ORDER.map((status) => {
             const count = countByStatus[status] ?? 0
             const percent = total > 0 ? (count / total) * 100 : 0
             return (
-              <div key={status} className="flex items-center gap-3">
-                <span className="w-40 shrink-0 text-sm text-ink-muted">{statusLabels[status]}</span>
+              <div key={status} className="flex items-center gap-3" title={STATUS_HINTS[status]}>
+                <span className="w-40 shrink-0 cursor-help text-sm text-ink-muted underline decoration-grey2 decoration-dotted underline-offset-4">
+                  {statusLabels[status]}
+                </span>
                 <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-grey1">
                   <div
                     className={`h-full rounded-full ${STATUS_BAR_COLOR[status]}`}
@@ -156,13 +191,29 @@ function StatusDistribution({ countByStatus }: { countByStatus: Partial<Record<P
   )
 }
 
-function RecentActivity({ requests }: { requests: PurchaseRequest[] }) {
+function RecentActivity({
+  requests,
+  onlyMine,
+  failed,
+}: {
+  requests: PurchaseRequest[]
+  onlyMine: boolean
+  failed: boolean
+}) {
   return (
     <div className="rounded-[6px] bg-surface-card p-6 shadow-card">
-      <p className="mb-4 text-xs font-semibold tracking-wide text-ink-muted uppercase">
-        Atividade recente
+      <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">
+        {onlyMine ? 'Suas solicitações recentes' : 'Solicitações recentes'}
       </p>
-      {requests.length === 0 ? (
+      <p className="mb-4 text-xs text-ink-muted">
+        {onlyMine
+          ? `As suas ${RECENT_LIMIT} últimas, em qualquer status.`
+          : `As ${RECENT_LIMIT} últimas criadas, em qualquer status.`}
+      </p>
+      {failed ? (
+        // Sem isso, uma falha da API aparecia como "nenhuma solicitação".
+        <p className="text-sm text-accent-text">Não foi possível carregar as solicitações.</p>
+      ) : requests.length === 0 ? (
         <p className="text-sm text-ink-muted">Nenhuma solicitação registrada ainda.</p>
       ) : (
         <div className="flex flex-col divide-y divide-grey1">
@@ -187,21 +238,42 @@ function RecentActivity({ requests }: { requests: PurchaseRequest[] }) {
   )
 }
 
-function FinancialActivity({ requests }: { requests: PurchaseRequest[] }) {
-  // Só entra aqui quem já tem uma cotação vencedora — é o que dá um valor
-  // financeiro de verdade para mostrar (fornecedor + R$ + data da decisão).
-  const withQuote = requests.filter((pr) => pr.selectedQuote)
+// Só compras já aprovadas (Aprovada ou Concluída): é o mesmo recorte do
+// card "Valor total aprovado", então os dois contam a mesma história. Antes
+// este quadro reaproveitava as 8 solicitações recentes e filtrava as que
+// tinham cotação — misturava "Aguardando aprovação" e até "Rejeitada" sob
+// um título financeiro, e a quantidade de linhas variava sem motivo claro.
+function ApprovedPurchases() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['purchase-requests', 'dashboard-approved'],
+    queryFn: async () => {
+      const [approved, completed] = await Promise.all([
+        fetchPurchaseRequests({ page: 1, pageSize: APPROVED_LIMIT, status: 'APPROVED' }),
+        fetchPurchaseRequests({ page: 1, pageSize: APPROVED_LIMIT, status: 'COMPLETED' }),
+      ])
+      return [...approved.data, ...completed.data]
+        .filter((pr) => pr.selectedQuote)
+        .sort((a, b) => (b.decidedAt ?? '').localeCompare(a.decidedAt ?? ''))
+        .slice(0, APPROVED_LIMIT)
+    },
+  })
+  const purchases = data ?? []
 
   return (
     <div className="rounded-[6px] bg-surface-card p-6 shadow-card">
-      <p className="mb-4 text-xs font-semibold tracking-wide text-ink-muted uppercase">
-        Cotações e financeiro
+      <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Compras aprovadas</p>
+      <p className="mb-4 text-xs text-ink-muted">
+        As {APPROVED_LIMIT} aprovações mais recentes, com o fornecedor escolhido e o valor.
       </p>
-      {withQuote.length === 0 ? (
-        <p className="text-sm text-ink-muted">Nenhuma cotação vencedora selecionada ainda.</p>
+      {isLoading ? (
+        <p className="text-sm text-ink-muted">Carregando...</p>
+      ) : isError ? (
+        <p className="text-sm text-accent-text">Não foi possível carregar as compras aprovadas.</p>
+      ) : purchases.length === 0 ? (
+        <p className="text-sm text-ink-muted">Nenhuma compra aprovada ainda.</p>
       ) : (
         <div className="flex flex-col divide-y divide-grey1">
-          {withQuote.map((pr) => (
+          {purchases.map((pr) => (
             <Link
               key={pr.id}
               to={`/purchase-requests/${pr.id}`}
@@ -211,12 +283,15 @@ function FinancialActivity({ requests }: { requests: PurchaseRequest[] }) {
                 <p className="truncate text-sm font-semibold text-ink">{pr.title}</p>
                 <p className="truncate text-xs text-ink-muted">
                   {pr.selectedQuote?.supplier?.legalName ?? 'Fornecedor'}
-                  {pr.decidedAt ? ` · decidido em ${dateTimeFormatter.format(new Date(pr.decidedAt))}` : ''}
+                  {pr.decidedAt ? ` · aprovada em ${dateFormatter.format(new Date(pr.decidedAt))}` : ''}
                 </p>
               </div>
-              <p className="shrink-0 font-sans text-sm font-bold text-ink italic">
-                {currencyFormatter.format(Number(pr.selectedQuote!.totalValue))}
-              </p>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <p className="font-sans text-sm font-bold text-ink italic">
+                  {currencyFormatter.format(Number(pr.selectedQuote!.totalValue))}
+                </p>
+                <StatusBadge status={pr.status} />
+              </div>
             </Link>
           ))}
         </div>
@@ -236,12 +311,9 @@ export function DashboardPage() {
     enabled: canSeeMetrics,
   })
 
-  // Mesma fonte de dados (GET /purchase-requests) alimenta tanto a
-  // "Atividade recente" quanto o "Cotações e financeiro" — evita duas
-  // chamadas quase idênticas para a mesma listagem.
-  const { data: recent, isLoading: recentLoading } = useQuery({
+  const { data: recent, isLoading: recentLoading, isError: recentError } = useQuery({
     queryKey: ['purchase-requests', 'dashboard-recent'],
-    queryFn: () => fetchPurchaseRequests({ page: 1, pageSize: 8 }),
+    queryFn: () => fetchPurchaseRequests({ page: 1, pageSize: RECENT_LIMIT }),
   })
 
   return (
@@ -251,10 +323,20 @@ export function DashboardPage() {
         {canSeeMetrics && <PeriodPicker value={range} onChange={setRange} />}
       </div>
 
+      {/* Solicitante não vê indicadores: em vez de só apontar para o menu,
+          oferece direto a ação principal dele. */}
       {!canSeeMetrics && (
-        <p className="mb-6 text-ink-muted">
-          Use o menu "Solicitações" para acompanhar suas solicitações de compra.
-        </p>
+        <div className="mb-6 flex flex-col gap-4 rounded-[6px] bg-surface-card p-6 shadow-card sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-sans text-lg font-bold text-ink italic">Precisa comprar algo?</p>
+            <p className="text-sm text-ink-muted">
+              Crie uma solicitação e acompanhe cada etapa até a compra ser concluída.
+            </p>
+          </div>
+          <Link to="/purchase-requests/new" className="shrink-0">
+            <Button>Nova solicitação</Button>
+          </Link>
+        </div>
       )}
 
       {canSeeMetrics && metricsLoading && !metrics && <p className="text-ink-muted">Carregando indicadores...</p>}
@@ -283,14 +365,16 @@ export function DashboardPage() {
             <KpiCard
               label="Valor total aprovado"
               value={currencyFormatter.format(metrics.totalApprovedValue)}
+              hint="Soma das aprovadas e concluídas"
               accent
             />
             <KpiCard
-              // Do envio até a decisão do aprovador — conta aprovações E
-              // rejeições (é o tempo de resposta da aprovação, não só das
-              // aprovadas), por isso não se chama "tempo médio de aprovação".
-              label="Tempo médio de decisão"
+              // Do envio pelo solicitante até a decisão do aprovador — inclui
+              // o tempo de cotação e conta aprovações E rejeições, por isso
+              // não se chama "tempo de aprovação" nem "tempo do aprovador".
+              label="Tempo médio até a decisão"
               value={formatApprovalTime(metrics.averageApprovalTimeHours)}
+              hint="Do envio à aprovação ou rejeição"
             />
           </div>
 
@@ -303,9 +387,16 @@ export function DashboardPage() {
       {recentLoading ? (
         <p className="text-ink-muted">Carregando atividade recente...</p>
       ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <RecentActivity requests={recent?.data ?? []} />
-          {canSeeMetrics && <FinancialActivity requests={recent?.data ?? []} />}
+        // Duas colunas só quando existe o segundo quadro (Compras aprovadas);
+        // para o solicitante, a lista ocupa a largura toda em vez de deixar
+        // metade da tela vazia.
+        <div className={`grid grid-cols-1 gap-6 ${canSeeMetrics ? 'lg:grid-cols-2' : ''}`}>
+          <RecentActivity
+            requests={recent?.data ?? []}
+            onlyMine={user?.role === 'REQUESTER'}
+            failed={recentError}
+          />
+          {canSeeMetrics && <ApprovedPurchases />}
         </div>
       )}
     </div>

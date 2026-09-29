@@ -1,9 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { plainToInstance } from 'class-transformer';
+import { Prisma } from '../generated/prisma/client';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UsersService } from './users.service';
 
 const REAL_ADMIN = { id: 99, email: 'admin@teste.com', role: 'ADMIN' as const, isAdminDelegate: false };
@@ -29,6 +33,38 @@ describe('UsersService', () => {
   });
 
   describe('create', () => {
+    // E-mail não diferencia maiúsculas: o DTO já entrega minúsculas e sem
+    // espaços, então "COMPRADOR@..." colide com "comprador@..." no banco.
+    it('normalizes the e-mail to lowercase and trims it (CreateUserDto)', () => {
+      const dto = plainToInstance(CreateUserDto, {
+        email: '  Maria.SILVA@Empresa.COM ',
+      });
+      expect(dto.email).toBe('maria.silva@empresa.com');
+    });
+
+    it('answers 409 "Este e-mail já está cadastrado." on a duplicate e-mail', async () => {
+      prisma.department.findUnique.mockResolvedValue({ id: 1 });
+      prisma.user.create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: '7.10.0',
+        }),
+      );
+
+      await expect(
+        service.create(
+          {
+            name: 'Maria',
+            email: 'comprador@compras.com',
+            password: 'senha123',
+            role: 'REQUESTER',
+            departmentId: 1,
+          },
+          REAL_ADMIN,
+        ),
+      ).rejects.toThrow(new ConflictException('Este e-mail já está cadastrado.'));
+    });
+
     it('hashes the password before persisting', async () => {
       prisma.department.findUnique.mockResolvedValue({ id: 1 });
       prisma.user.create.mockImplementation(({ data }: any) =>
@@ -153,6 +189,31 @@ describe('UsersService', () => {
       await expect(
         service.update(1, { name: 'Novo nome' }, REAL_ADMIN),
       ).resolves.toEqual({ id: 1, role: 'ADMIN', name: 'Novo nome' });
+    });
+
+    it('rejects deactivating your own account (soft delete of yourself)', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 99, role: 'ADMIN' });
+
+      await expect(
+        service.update(99, { isActive: false }, REAL_ADMIN),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('deactivates another user, keeping the record (soft delete)', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 1,
+        role: 'BUYER',
+        departmentId: null,
+      });
+      prisma.user.update.mockResolvedValue({ id: 1, isActive: false });
+
+      await service.update(1, { isActive: false }, REAL_ADMIN);
+
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 1 }, data: { isActive: false } }),
+      );
+      expect(prisma.user.delete).not.toHaveBeenCalled();
     });
   });
 

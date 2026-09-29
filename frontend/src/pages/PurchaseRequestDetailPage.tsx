@@ -16,6 +16,7 @@ import { Modal } from '../components/ui/Modal'
 import { QuotesSection } from '../components/quotes/QuotesSection'
 import { StatusHistory } from '../components/purchase-requests/StatusHistory'
 import { useAuthStore } from '../store/auth-store'
+import { useConfirm } from '../hooks/confirm-context'
 import { actsAsAdmin } from '../lib/roles'
 import type { PurchaseRequest } from '../api/types'
 
@@ -33,6 +34,7 @@ export function PurchaseRequestDetailPage() {
   const purchaseRequestId = Number(id)
   const user = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
+  const confirm = useConfirm()
 
   const { data: pr, isLoading, isError, error } = useQuery({
     queryKey: ['purchase-request', purchaseRequestId],
@@ -106,13 +108,49 @@ export function PurchaseRequestDetailPage() {
   const canComplete = isBuyerOrAdmin && pr.status === 'APPROVED'
   const showQuotes = pr.status !== 'DRAFT'
 
+  // Sem isso, um 409/403 da API (ex: outra pessoa mudou o status antes)
+  // não aparecia em lugar nenhum — o botão só voltava ao normal.
+  const actionError = submitMutation.error ?? completeMutation.error ?? cancelMutation.error
+
+  const pricedItems =pr.items.filter((item) => item.estimatedUnitPrice)
+  const estimatedTotal =
+    pricedItems.length > 0
+      ? pricedItems.reduce((sum, item) => sum + Number(item.estimatedUnitPrice) * item.quantity, 0)
+      : null
+  const hasItemWithoutPrice = pricedItems.length > 0 && pricedItems.length < pr.items.length
+
+  // Concluir também é definitivo: encerra o fluxo da solicitação.
+  async function handleComplete() {
+    const ok = await confirm({
+      title: 'Concluir compra?',
+      message: `"${pr!.title}" será marcada como concluída, indicando que a compra foi efetivada com o fornecedor. Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Concluir compra',
+      cancelLabel: 'Voltar',
+      variant: 'success',
+    })
+    if (ok) completeMutation.mutate(pr!.id)
+  }
+
+  // Cancelar é definitivo (não existe "descancelar"), então pede
+  // confirmação — mesmo padrão de aprovar/rejeitar e das exclusões.
+  async function handleCancel() {
+    const ok = await confirm({
+      title: 'Cancelar solicitação?',
+      message: `"${pr!.title}" será cancelada e sai do fluxo de compra. Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Cancelar solicitação',
+      cancelLabel: 'Voltar',
+      variant: 'danger',
+    })
+    if (ok) cancelMutation.mutate(pr!.id)
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="font-sans text-3xl font-bold text-accent italic">{pr.title}</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Criada em {dateFormatter.format(new Date(pr.createdAt))}
+            Solicitação #{pr.id} · Criada em {dateFormatter.format(new Date(pr.createdAt))}
             {pr.requester ? ` por ${pr.requester.name}` : ''}
           </p>
         </div>
@@ -129,6 +167,20 @@ export function PurchaseRequestDetailPage() {
         </div>
       </div>
 
+      {/* Rascunho é privado até ser submetido — sem este aviso, dava para
+          criar a solicitação, sair da página e achar que ela já tinha ido
+          para o comprador. */}
+      {pr.status === 'DRAFT' && (
+        <div className="mb-6 rounded-[6px] border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+          <p className="font-semibold">Esta solicitação ainda é um rascunho.</p>
+          <p className="mt-1">
+            {canSubmit
+              ? 'Só você consegue vê-la. Clique em "Submeter para cotação" no fim da página para enviá-la ao time de compras.'
+              : 'Só quem criou consegue vê-la e enviá-la para cotação.'}
+          </p>
+        </div>
+      )}
+
       <div className="mb-6 rounded-[6px] bg-surface-card p-6 shadow-card">
         <p className="mb-1 text-xs font-semibold tracking-wide text-ink-muted uppercase">Justificativa</p>
         <p className="text-ink">{pr.justification}</p>
@@ -141,7 +193,8 @@ export function PurchaseRequestDetailPage() {
               <th className="px-4 py-3">Item</th>
               <th className="px-4 py-3">Qtd.</th>
               <th className="px-4 py-3">Unidade</th>
-              <th className="px-4 py-3">Preço est.</th>
+              <th className="px-4 py-3">Preço unit. estimado</th>
+              <th className="px-4 py-3 text-right">Subtotal</th>
             </tr>
           </thead>
           <tbody>
@@ -153,9 +206,28 @@ export function PurchaseRequestDetailPage() {
                 <td className="px-4 py-3 whitespace-nowrap">
                   {item.estimatedUnitPrice ? currencyFormatter.format(Number(item.estimatedUnitPrice)) : '—'}
                 </td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  {item.estimatedUnitPrice
+                    ? currencyFormatter.format(Number(item.estimatedUnitPrice) * item.quantity)
+                    : '—'}
+                </td>
               </tr>
             ))}
           </tbody>
+          {/* Total só quando algum item tem preço estimado — o campo é
+              opcional, e "Total: R$ 0,00" daria a entender que é de graça. */}
+          {estimatedTotal !== null && (
+            <tfoot>
+              <tr className="border-t border-grey1 bg-grey1/40">
+                <td colSpan={4} className="px-4 py-3 text-right text-xs font-semibold tracking-wide text-ink-muted uppercase">
+                  Total estimado{hasItemWithoutPrice ? ' (itens sem preço não entram)' : ''}
+                </td>
+                <td className="px-4 py-3 text-right font-sans font-bold whitespace-nowrap text-ink italic">
+                  {currencyFormatter.format(estimatedTotal)}
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 
@@ -173,21 +245,21 @@ export function PurchaseRequestDetailPage() {
             </Button>
           )}
           {canComplete && (
-            <Button onClick={() => completeMutation.mutate(pr.id)} disabled={completeMutation.isPending}>
+            <Button onClick={handleComplete} disabled={completeMutation.isPending}>
               {completeMutation.isPending ? 'Concluindo...' : 'Concluir compra'}
             </Button>
           )}
           {canCancel && (
-            <Button
-              variant="outline"
-              onClick={() => cancelMutation.mutate(pr.id)}
-              disabled={cancelMutation.isPending}
-            >
-              Cancelar
+            <Button variant="outline" onClick={handleCancel} disabled={cancelMutation.isPending}>
+              {cancelMutation.isPending ? 'Cancelando...' : 'Cancelar solicitação'}
             </Button>
           )}
         </div>
       )}
+
+      {actionError ? (
+        <p className="mt-3 text-sm text-accent-text">{errorMessage(actionError, 'Não foi possível concluir a ação.')}</p>
+      ) : null}
 
       {editing && (
         <EditPurchaseRequestModal
@@ -245,6 +317,12 @@ function EditPurchaseRequestModal({
           maxLength={2000}
           hint={`${justification.length}/2000 caracteres`}
         />
+        {/* A API só permite editar título e justificativa — sem este aviso,
+            a pessoa ficava procurando onde mudar os itens. */}
+        <p className="rounded-[5px] bg-grey1 px-3 py-2 text-xs text-ink-muted">
+          Os itens não podem ser alterados depois de criados. Para mudar itens, cancele este rascunho e crie uma nova
+          solicitação.
+        </p>
         {error ? <p className="text-sm text-accent-text">{errorMessage(error, 'Não foi possível salvar.')}</p> : null}
         <Button type="submit" disabled={pending}>
           {pending ? 'Salvando...' : 'Salvar alterações'}

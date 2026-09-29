@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { isAxiosError } from 'axios'
 import { fetchPurchaseRequests } from '../api/purchase-requests'
 import { decideApproval } from '../api/approvals'
+import { downloadQuoteProposal } from '../api/quotes'
 import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
 import { StatusBadge } from '../components/ui/StatusBadge'
@@ -14,6 +15,7 @@ import type { PurchaseRequest } from '../api/types'
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' })
 const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
 function errorMessage(err: unknown, fallback: string): string {
   if (!isAxiosError(err)) return fallback
@@ -31,7 +33,7 @@ export function ApprovalsPage() {
   const [tab, setTab] = useState<Tab>('pending')
   const [pendingPage, setPendingPage] = useState(1)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError: pendingError } = useQuery({
     // Paginado: antes buscava só as 50 primeiras, sem aviso — a partir da
     // 51ª, a solicitação simplesmente não aparecia pra ninguém aprovar.
     queryKey: ['purchase-requests', 'pending-approval', pendingPage],
@@ -45,12 +47,12 @@ export function ApprovalsPage() {
   // dia isso não bastar, "truncated" abaixo avisa em vez de esconder dados
   // silenciosamente.
   const HISTORY_PAGE_SIZE = 100
-  const { data: approvedData, isLoading: approvedLoading } = useQuery({
+  const { data: approvedData, isLoading: approvedLoading, isError: approvedError } = useQuery({
     queryKey: ['purchase-requests', 'decision-history', 'APPROVED'],
     queryFn: () => fetchPurchaseRequests({ status: 'APPROVED', pageSize: HISTORY_PAGE_SIZE }),
     enabled: tab === 'history',
   })
-  const { data: rejectedData, isLoading: rejectedLoading } = useQuery({
+  const { data: rejectedData, isLoading: rejectedLoading, isError: rejectedError } = useQuery({
     queryKey: ['purchase-requests', 'decision-history', 'REJECTED'],
     queryFn: () => fetchPurchaseRequests({ status: 'REJECTED', pageSize: HISTORY_PAGE_SIZE }),
     enabled: tab === 'history',
@@ -58,7 +60,7 @@ export function ApprovalsPage() {
   // Uma solicitação aprovada que depois teve a compra concluída sai de
   // APPROVED e vira COMPLETED — sem esta terceira busca, toda aprovação que
   // virou compra de verdade sumia do histórico de decisões.
-  const { data: completedData, isLoading: completedLoading } = useQuery({
+  const { data: completedData, isLoading: completedLoading, isError: completedError } = useQuery({
     queryKey: ['purchase-requests', 'decision-history', 'COMPLETED'],
     queryFn: () => fetchPurchaseRequests({ status: 'COMPLETED', pageSize: HISTORY_PAGE_SIZE }),
     enabled: tab === 'history',
@@ -72,6 +74,7 @@ export function ApprovalsPage() {
         new Date(b.decidedAt ?? b.createdAt).getTime() - new Date(a.decidedAt ?? a.createdAt).getTime(),
     )
   const historyLoading = approvedLoading || rejectedLoading || completedLoading
+  const historyError = approvedError || rejectedError || completedError
   const historyTruncated = historySources.some((source) => source && source.total > source.data.length)
 
   const decideMutation = useMutation({
@@ -98,7 +101,7 @@ export function ApprovalsPage() {
   async function handleDecide(pr: PurchaseRequest, decision: 'APPROVED' | 'REJECTED') {
     const ok = await confirm({
       title: decision === 'APPROVED' ? 'Aprovar solicitação?' : 'Rejeitar solicitação?',
-      message: `"${pr.title}" será ${decision === 'APPROVED' ? 'aprovada' : 'rejeitada'}. Esta decisão fica registrada no histórico e não pode ser desfeita.`,
+      message: `"${pr.title}"${pr.selectedQuote ? ` (${currencyFormatter.format(Number(pr.selectedQuote.totalValue))})` : ''} será ${decision === 'APPROVED' ? 'aprovada' : 'rejeitada'}. Esta decisão fica registrada no histórico e não pode ser desfeita.`,
       confirmLabel: decision === 'APPROVED' ? 'Aprovar' : 'Rejeitar',
       variant: decision === 'APPROVED' ? 'success' : 'danger',
     })
@@ -135,6 +138,8 @@ export function ApprovalsPage() {
           </p>
 
           {isLoading && <p className="text-ink-muted">Carregando...</p>}
+          {/* Sem isso, uma falha da API deixava a aba simplesmente em branco. */}
+          {pendingError && <p className="text-accent-text">Não foi possível carregar as solicitações pendentes.</p>}
 
           {data && data.data.length === 0 && (
             <p className="text-ink-muted">Nenhuma solicitação aguardando aprovação no momento.</p>
@@ -143,8 +148,10 @@ export function ApprovalsPage() {
           <div className="flex flex-col gap-4">
             {data?.data.map((pr) => (
               <div key={pr.id} className="rounded-[6px] bg-surface-card p-6 shadow-card">
-                <div className="mb-3 flex items-start justify-between">
-                  <div>
+                {/* O aprovador precisa ver o que está aprovando — quanto, de
+                    quem e por quê — antes de decidir, sem abrir o detalhe. */}
+                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
                     <Link
                       to={`/purchase-requests/${pr.id}`}
                       className="font-sans text-lg font-bold text-ink italic hover:text-accent"
@@ -152,9 +159,39 @@ export function ApprovalsPage() {
                       {pr.title}
                     </Link>
                     <p className="text-sm text-ink-muted">
-                      {pr.requester?.name} · {dateFormatter.format(new Date(pr.createdAt))}
+                      #{pr.id} · {pr.requester?.name} · {dateFormatter.format(new Date(pr.createdAt))}
                     </p>
                   </div>
+                  {pr.selectedQuote && (
+                    <div className="text-right">
+                      <p className="font-sans text-xl font-bold text-ink italic">
+                        {currencyFormatter.format(Number(pr.selectedQuote.totalValue))}
+                      </p>
+                      <p className="text-xs text-ink-muted">
+                        {pr.selectedQuote.supplier?.legalName ?? 'Fornecedor'}
+                      </p>
+                      {/* O aprovador precisa conferir a proposta antes de
+                          decidir — sem isso, só abrindo o detalhe do pedido. */}
+                      {pr.selectedQuote.proposalFileName ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            downloadQuoteProposal(pr.id, pr.selectedQuote!.id, pr.selectedQuote!.proposalFileName!)
+                          }
+                          className="mt-1 text-xs font-semibold text-accent-text uppercase hover:underline"
+                        >
+                          Ver proposta
+                        </button>
+                      ) : (
+                        <p className="mt-1 text-xs text-ink-muted italic">Sem proposta anexada</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mb-4 rounded-[6px] bg-surface-muted px-4 py-3">
+                  <p className="mb-1 text-xs font-semibold tracking-wide text-ink-muted uppercase">Justificativa</p>
+                  <p className="text-sm text-ink">{pr.justification}</p>
                 </div>
 
                 <TextField
@@ -215,7 +252,9 @@ export function ApprovalsPage() {
 
           {historyLoading && <p className="text-ink-muted">Carregando...</p>}
 
-          {!historyLoading && history.length === 0 && (
+          {historyError && <p className="mb-4 text-accent-text">Não foi possível carregar todo o histórico de decisões.</p>}
+
+          {!historyLoading && !historyError && history.length === 0 && (
             <p className="text-ink-muted">Nenhuma decisão registrada ainda.</p>
           )}
 
@@ -231,8 +270,10 @@ export function ApprovalsPage() {
               <table className="w-full text-left text-sm">
                 <thead className="bg-grey1 text-xs font-semibold text-ink-muted uppercase">
                   <tr>
+                    <th className="px-4 py-3">Nº</th>
                     <th className="px-4 py-3">Título</th>
                     <th className="px-4 py-3">Solicitante</th>
+                    <th className="px-4 py-3 text-right">Valor</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Decidida em</th>
                   </tr>
@@ -240,7 +281,11 @@ export function ApprovalsPage() {
                 <tbody>
                   {history.map((pr) => (
                     <tr key={pr.id} className="border-t border-grey1 align-top hover:bg-surface-muted">
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap text-ink-muted tabular-nums">#{pr.id}</td>
+                      {/* min-w no título: com Nº e Valor na tabela, o título
+                          era a coluna que encolhia até ficar uma palavra por
+                          linha; o nome do solicitante é quem quebra agora. */}
+                      <td className="min-w-[12rem] px-4 py-3">
                         <Link
                           to={`/purchase-requests/${pr.id}`}
                           className="font-semibold text-ink hover:text-accent"
@@ -248,7 +293,10 @@ export function ApprovalsPage() {
                           {pr.title}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-ink-muted">{pr.requester?.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-ink-muted">{pr.requester?.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap text-ink tabular-nums">
+                        {pr.selectedQuote ? currencyFormatter.format(Number(pr.selectedQuote.totalValue)) : '—'}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <StatusBadge status={pr.status} />
                       </td>

@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -32,6 +36,15 @@ export class AuthService {
     const passwordMatches = await bcrypt.compare(password, user.password);
     if (!passwordMatches) {
       throw new UnauthorizedException('Credenciais inválidas.');
+    }
+
+    // Conta desativada (soft delete): checada só DEPOIS da senha, para não
+    // revelar a quem chuta e-mails quais contas existem. Quem sabe a senha
+    // recebe o motivo real, em vez de achar que digitou errado.
+    if (!user.isActive) {
+      throw new ForbiddenException(
+        'Esta conta está desativada. Procure o administrador do sistema.',
+      );
     }
 
     // O payload do token guarda só o essencial (id, email, papel) — nunca a

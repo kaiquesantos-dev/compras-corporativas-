@@ -219,7 +219,9 @@ IN_QUOTATION --buyer/admin cancela--> CANCELLED (terminal)
 - **Rascunho é privado:** uma solicitação em DRAFT só é visível para quem a criou e para o ADMIN (inclusive o delegado). Comprador e aprovador passam a enxergá-la quando ela é submetida — na listagem, no detalhe, no histórico e nos números do painel.
 - **Uma cotação por fornecedor por solicitação** (`409` na segunda), para que a comparação seja entre empresas diferentes.
 - **Fornecedor inativo** não recebe cotação nova nem pode ter cotação selecionada como vencedora (`409`). O CNPJ não é editável depois do cadastro. Se foi cadastrado errado, desative o fornecedor e cadastre outro.
-- **Sistema nunca fica sem administrador:** ninguém altera o próprio papel nem exclui a própria conta (`403`). Acesso ADMIN delegado não cria contas ADMIN nem promove ninguém a ADMIN (`403`). Assim a delegação continua sendo temporária.
+- **E-mail não diferencia maiúsculas de minúsculas:** no cadastro, na edição e no login o e-mail é convertido para minúsculas e sem espaços nas pontas. `COMPRADOR@compras.com` é o mesmo que `comprador@compras.com`: tentar cadastrá-lo de novo dá `409` ("Este e-mail já está cadastrado."), e o login funciona do jeito que a pessoa digitar.
+- **Usuário que sai da empresa é desativado, não excluído (soft delete):** `PATCH /users/:id` com `"isActive": false`. O usuário desativado não consegue logar (`403` com o motivo, só quando a senha está certa) e perde a sessão aberta na hora (`401` na próxima requisição), mas continua como autor dos pedidos, cotações, aprovações e histórico. `"isActive": true` reativa. A exclusão de verdade só é possível para quem não tem nenhum registro vinculado (`409` caso contrário).
+- **Sistema nunca fica sem administrador:** ninguém altera o próprio papel, exclui nem desativa a própria conta (`403`). Acesso ADMIN delegado não cria contas ADMIN nem promove ninguém a ADMIN (`403`). Assim a delegação continua sendo temporária.
 - **REQUESTER sempre tem departamento:** é exigido na criação e na edição (`400`), e um departamento com usuários não pode ser excluído (`409`), para que nenhum solicitante fique sem conseguir criar solicitações.
 
 ## Endpoints
@@ -318,5 +320,5 @@ Todas as rotas exigem `X-API-KEY`. "Auth" indica o papel exigido além do JWT v�
 - Documentação Swagger completa, em português, com exemplos realistas (`/docs`).
 - Seed com dados de demonstração cobrindo todo o ciclo de vida.
 - Containerização completa (API + banco) via Docker Compose, com migrations automáticas no startup.
-- Indicador de domínio: `GET /purchase-requests/metrics` (contagem por status, valor total aprovado, tempo médio de decisão, do envio até a aprovação ou rejeição).
+- Indicador de domínio: `GET /purchase-requests/metrics` (contagem por status, valor total aprovado, tempo médio até a decisão, do envio até a aprovação ou rejeição).
 - Suíte de testes end-to-end cobrindo os 10 cenários obrigatórios do enunciado.

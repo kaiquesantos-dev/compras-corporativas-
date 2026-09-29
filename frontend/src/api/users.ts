@@ -28,6 +28,8 @@ export interface UpdateUserInput {
   role?: Role
   // null = desvincular do departamento (undefined = não mexer)
   departmentId?: number | null
+  // Soft delete: false desativa (sem login, histórico preservado); true reativa.
+  isActive?: boolean
 }
 
 export async function updateUser(id: number, input: UpdateUserInput): Promise<User> {

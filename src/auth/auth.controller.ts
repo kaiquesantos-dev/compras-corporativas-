@@ -44,6 +44,11 @@ export class AuthController {
     description: 'Email não cadastrado ou senha incorreta.',
   })
   @ApiResponse({
+    status: 403,
+    description:
+      'Senha correta, mas a conta foi desativada pelo administrador (soft delete).',
+  })
+  @ApiResponse({
     status: 429,
     description:
       'Muitas tentativas seguidas para o mesmo e-mail a partir da mesma origem (padrão: 5 por minuto, configurável em LOGIN_MAX_ATTEMPTS_PER_MINUTE). Proteção contra tentativa de adivinhar senha.',
@@ -66,7 +71,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Dados do usuário autenticado',
     description:
-      '**Papéis permitidos:** Qualquer usuário autenticado\n\nDevolve id/email/role/isAdminDelegate atuais (revalidados no banco a cada chamada) — útil pro frontend atualizar o estado da sessão sem precisar de um novo login, por exemplo depois de uma delegação de acesso ADMIN ser concedida ou revogada.',
+      '**Papéis permitidos:** Qualquer usuário autenticado\n\nDevolve id/email/role/isAdminDelegate atuais (revalidados no banco a cada chamada) — útil pro frontend atualizar o estado da sessão sem precisar de um novo login, por exemplo depois de uma delegação de acesso de administrador ser concedida ou revogada.',
   })
   @ApiResponse({ status: 200, description: 'Dados do usuário autenticado.' })
   me(@CurrentUser() user: AuthenticatedUser) {

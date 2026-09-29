@@ -27,6 +27,7 @@ describe('JwtStrategy', () => {
       email: 'current@compras.com',
       role: 'REQUESTER',
       isAdminDelegate: false,
+      isActive: true,
     });
 
     // Payload traz um email/role antigos (ex: token emitido antes de uma
@@ -39,7 +40,13 @@ describe('JwtStrategy', () => {
 
     expect(prisma.user.findUnique).toHaveBeenCalledWith({
       where: { id: 1 },
-      select: { id: true, email: true, role: true, isAdminDelegate: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isAdminDelegate: true,
+        isActive: true,
+      },
     });
     expect(result).toEqual({
       id: 1,
@@ -54,6 +61,22 @@ describe('JwtStrategy', () => {
 
     await expect(
       strategy.validate({ sub: 999, email: 'ghost@compras.com', role: 'ADMIN' }),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  // Soft delete: o token ainda é válido, mas a conta foi desativada — a
+  // sessão cai na hora, sem esperar o token vencer.
+  it('rejects a still-valid token of a deactivated account', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 1,
+      email: 'saiu@compras.com',
+      role: 'BUYER',
+      isAdminDelegate: false,
+      isActive: false,
+    });
+
+    await expect(
+      strategy.validate({ sub: 1, email: 'saiu@compras.com', role: 'BUYER' }),
     ).rejects.toThrow(UnauthorizedException);
   });
 });

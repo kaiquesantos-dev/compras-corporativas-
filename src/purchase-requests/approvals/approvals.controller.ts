@@ -38,7 +38,7 @@ export class ApprovalsController {
   @ApiOperation({
     summary: 'Decidir aprovação',
     description:
-      '**Papéis permitidos:** APPROVER, ADMIN\n\nAprova ou rejeita a solicitação que está em PENDING_APPROVAL. REJECTED é terminal: nenhuma ação futura é permitida sobre a solicitação.',
+      '**Papéis permitidos:** Aprovador (APPROVER), Administrador (ADMIN)\n\nAprova ou rejeita a solicitação que está em PENDING_APPROVAL. REJECTED é terminal: nenhuma ação futura é permitida sobre a solicitação.',
   })
   @ApiResponse({ status: 200, description: 'Decisão registrada.' })
   @ApiResponse({
@@ -56,7 +56,7 @@ export class ApprovalsController {
   @Get()
   @ApiOperation({
     summary: 'Consultar decisão de aprovação',
-    description: '**Papéis permitidos:** REQUESTER, BUYER, APPROVER, ADMIN',
+    description: '**Papéis permitidos:** Solicitante (REQUESTER), Comprador (BUYER), Aprovador (APPROVER), Administrador (ADMIN)',
   })
   @ApiResponse({
     status: 404,
